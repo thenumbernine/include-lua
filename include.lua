@@ -227,15 +227,21 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 		})
 	end
 
-	local result = xpcall(function()
+	local throwme
+	xpcall(function()
 --print"cdef'ing code:"
 		ffi.cdef(code)
 --print'success!'
 	end, function(err)
 --print"error:"
---		io.stderr:write('macros: '..tolua(preproc.macros)..'\n')
-		io.stderr:write(err..'\n'..debug.traceback())
+		throwme = 
+--			'macros: '..tolua(preproc.macros)..'\n'..
+			require 'template.showcode'(code)..'\n'
+			..err..'\n'..debug.traceback()
 	end)
+	if throwme then
+		error(throwme)
+	end
 
 	-- TODO return any 'ffi.load' ? or does that just return ffi.C itself?
 	-- also TODO, doesn't the luajit ffi documentation say not to do this?
