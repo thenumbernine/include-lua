@@ -3,6 +3,7 @@ local io = require 'ext.io'
 local os = require 'ext.os'
 local string = require 'ext.string'
 local tolua = require 'ext.tolua'
+local timer = require 'ext.timer'.timer
 
 local Preproc = require 'preproc'
 local preproc = Preproc()
@@ -212,7 +213,9 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 		code = assert(io.readfile(cachefilename))
 	else
 --print'preprocessing...'		
-		code = preproc(inccode)
+		timer('preprocessing '..filename, function()
+			code = preproc(inccode)
+		end)
 --print'writing...'	
 		io.writefile(cachefilename, code)
 
