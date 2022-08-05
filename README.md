@@ -2,7 +2,10 @@
 
 If you want to use LuaJIT FFI with typical C `#include` statements.
 
-Depends on my [preproc-lua](https://github.com/thenumbernine/preproc-lua) project.
+Depends on:
+- [preproc-lua](https://github.com/thenumbernine/preproc-lua)
+- [lua-ext](https://github.com/thenumbernine/lua-ext)
+- LuaJIT
 
 Uses the environment variable `$LUAJIT_INCLUDE_CACHE_PATH/cache` for storing, otherwise uses `$HOME/.luajit.include/cache`.
 
