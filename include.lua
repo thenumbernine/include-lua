@@ -46,6 +46,10 @@ if ffi.os == 'Windows' then
 		APIENTRY = '',
 	}
 	--]]
+
+	-- TODO better way to configure this for everyone ...
+	preproc:addIncludeDir(os.getenv'USERPROFILE'..'/include', true)
+
 else	-- assume everything else uses gcc
 	assert(os.execute'g++ --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 	preproc(io.readproc'g++ -dM -E - < /dev/null 2>&1')
@@ -183,6 +187,16 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	-- and in that case ... use preproc:searchForInclude
 	local searchfn = preproc:searchForInclude(filename, sysinc)
 --print('search', searchfn)
+	if ffi.os == 'Windows' then
+		-- Windows is stuck in the last century
+		-- I guess the path separator has been changed to / by now?
+		-- should I pattern match for LETTER:/ ... or is there some special-char like : that I can't ever use and should just always search for?
+		local drive, rest = searchfn:match'^(%a):/(.*)$'
+		if drive then
+			searchfn = drive..'/'..rest
+		end
+--print('search Windows fixed', searchfn)
+	end
 
 	local cachebasedir = os.getenv'LUAJIT_INCLUDE_CACHE_PATH'
 	if cachebasedir then
@@ -250,7 +264,7 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	-- also TODO, doesn't the luajit ffi documentation say not to do this?
 	-- but then ... is this the same as ffi.load()?  if it is ... isn't returning ffi.load() just as bad?
 	-- how is ffi.load() different than ffi.C ?
-	return ffi.C
+	return code, ffi.C
 end
 
 return include
