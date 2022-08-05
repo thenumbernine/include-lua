@@ -184,7 +184,9 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 --print('search', searchfn)
 
 	local cachebasedir = os.getenv'LUAJIT_INCLUDE_CACHE_PATH'
-	if not cachebasedir then
+	if cachebasedir then
+		cachebasedir = cachebasedir..'/cache'
+	else
 		local home = os.getenv'HOME'
 		assert(home, "Don't know where to store the cache.  maybe set LUAJIT_INCLUDE_CACHE_PATH.")
 		cachebasedir = home..'/.luajit.include'
