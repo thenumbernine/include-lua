@@ -179,6 +179,7 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 --print('incdir', incdir)
 --print('incbasename', incbasename) 
 
+--[[ use the resolved #include path 
 	-- TODO another option - just use the gcc -m option to search include dependency graph
 	-- use require 'make'.getDependentHeaders(src, obj)
 
@@ -197,13 +198,17 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 		end
 --print('search Windows fixed', searchfn)
 	end
+	local savedir = io.getfiledir(searchfn)
+--]]
+-- [[ or use the path in the #include lookup 
+-- (doesn't require a build environment / preproc to be present ... this way you can save the cache and do the #includes without preproc)
+	local savedir = incdir
+--]]
 
 	local cachebasedir = os.getenv'LUAJIT_INCLUDE_CACHE_PATH'
-	if cachebasedir then
-		cachebasedir = cachebasedir..'/cache'
-	else
-		local home = os.getenv'HOME'
-		assert(home, "Don't know where to store the cache.  maybe set LUAJIT_INCLUDE_CACHE_PATH.")
+	if not cachebasedir then
+		local home = os.getenv'HOME' or os.getenv'USERPROFILE'
+		assert(home, "Don't know where to store the cache.  maybe set the LUAJIT_INCLUDE_CACHE_PATH environment variable.")
 		cachebasedir = home..'/.luajit.include'
 	end
 	os.mkdir(cachebasedir, true)
@@ -214,7 +219,7 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 		..incdir
 	--]]
 	-- [[
-	local cachedir = cachebasedir..'/'..io.getfiledir(searchfn)
+	local cachedir = cachebasedir..'/'..savedir
 	--]]
 --print('cachedir', cachedir)	
 	os.mkdir(cachedir, true)

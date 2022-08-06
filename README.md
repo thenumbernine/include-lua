@@ -10,7 +10,7 @@ Depends on:
 - [lua-template](https://github.com/thenumbernine/lua-template)
 - LuaJIT
 
-Uses the environment variable `$LUAJIT_INCLUDE_CACHE_PATH/cache` for storing, otherwise uses `$HOME/.luajit.include/cache`.
+Uses the environment variable `$LUAJIT_INCLUDE_CACHE_PATH` for storing, otherwise uses `$HOME/.luajit.include`.
 
 # Example:
 ```
@@ -19,3 +19,7 @@ local include = require 'include'
 local stdio = include '<stdio.h>'
 stdio.printf("testing %d\n", ffi.cast('int64_t', 42))
 ```
+
+# TODO:
+
+- the cache stores by searched filename, but it would be nice if it could also first store by included filename, so that subsequent include's could get the correct file without doing a search (in case it's on a system where the C includes/compile is missing)
