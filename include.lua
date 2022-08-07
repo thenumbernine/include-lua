@@ -1,12 +1,94 @@
+--[[
+This is a spin off my preproc/generate.lua file
+Once it's flushed out I won't need that file anymore (but maybe will keep for kicks)
+
+ok I think i see where things will be going ...
+generating .h files is a bad idea, instead I should generate .lua files that have inline'd cdef header code where the old header code went, and have include()'s where the old #include's went
+
+so in this .lua ... 
+- i should be inserting manual preproc.macro[k] = v code for when a macro is set
+- i should also be (doubly) inserting ffi.cdef' enum { k = v; } ' when a macro is set to a value
+- and for all the other lines, i should be ffi.cdef'ing them .. but the ffi.cdef shouldn't split lines ... hmm ...
+
+
+hmm but what about preprocessor state between includes?
+
+it is seeming more and more like preproc, include, and lua-ffi-bindings should all be merged
+
+--]]
 local ffi = require 'ffi'		-- used for OS check and used for verifying that the generated C headers are luajit-ffi compatible
 local io = require 'ext.io'
 local os = require 'ext.os'
 local string = require 'ext.string'
+local fromlua = require 'ext.fromlua'
 local tolua = require 'ext.tolua'
+
+--[[ can't use this because ext.timer uses ffi.c.sys.time which uses include
 local timer = require 'ext.timer'.timer
+--]]
+-- [[ so inline it here
+function timer(name, cb, ...)
+	io.stderr:write(name..'...\n')
+	io.stderr:flush()
+	local startTime = os.clock()
+	cb(...)
+	local endTime = os.clock()
+	io.stderr:write('...done '..name..' ('..(endTime - startTime)..'s)\n')
+	io.stderr:flush()
+end
+--]]
 
 local Preproc = require 'preproc'
-local preproc = Preproc()
+
+-- TODO how about some scope?
+-- TODO TODO we really need to turn our `#include <...>`'s into `require 'include' '...'`'s
+local preproc
+preproc = Preproc{
+	--[[
+ok here's our dilemma ...
+	#include <GL/gl.h>
+	#include <GL/glext.h>
+to use glext.h , you must include gl.h first
+because glext.h needs the state from gl.h
+...
+so if we are including system headers, like 
+	#include <stdio.h>
+then we want our state cleared for the sake of caching (for the most part, right?)
+but in other cases, like our glext.h example, we don't
+	--]]
+	--[=[
+	includeCallback = function(self, search, found)
+		print('#include', self, search, found)
+	
+		-- ok here ...
+		-- (only for certain #include's ?)
+		-- push the macros?
+		-- then do the include on this file (how?  I'd say pass it 'search' and assert the lookup matches 'found' ...  or pass it the contents of 'found'?)
+		-- then cache it same as always
+		-- then restore macros
+	
+		--[[ ok first attempt without the push/pop of macros
+		local code require 'include' (search)
+		--return code
+		return ''
+		--]] -- inf loop
+		-- [[ try again
+		local table = require 'ext.table'
+		local sub = require 'preproc'()
+		sub.macros = table(preproc.macros)
+		sub.sysIncludeDirs = table(preproc.sysIncludeDirs)
+		sub.userIncludeDirs = table(preproc.userIncludeDirs)
+		-- but this wont cache correctly...
+		local code = sub((assert(io.readfile(found))))
+		-- TODO at this point the .h will be cached ... how about reading the cache instead of handling it a second time?
+		-- now forward the state
+		for k,v in pairs(table(sub.macros)) do self.macros[k] = v end
+		--return code	-- TODO don't -- because enum's lhs names will be re-evaluated
+		return ''
+		--]]
+	end,
+	--]=]
+}
 
 if ffi.os == 'Windows' then
 	-- I guess pick these to match the compiler used to build luajit
@@ -58,7 +140,7 @@ else	-- assume everything else uses gcc
 --print('results')
 --print(results)
 	assert(results:match'include')
-	assert(results:match('#include'))	-- why doesn't this match? 
+	assert(results:match('#include'))	-- why doesn't this match?
 	assert(results:match'#include "%.%.%." search starts here:')
 	local userSearchStr, sysSearchStr = results:match'#include "%.%.%." search starts here:(.-)#include <%.%.%.> search starts here:(.-)End of search list%.'
 	assert(userSearchStr)
@@ -116,13 +198,17 @@ local function include(filename, sysinc)
 		end
 	end
 
+--[[
 	local inccode = '#include '
 		..(sysinc and '<' or '"')
 		..filename
 		..(sysinc and '>' or '"')
 		..'\n'
+-- search through headers and process them before processing this header?
+-- sounds nice, but gcc -M will only give you back the resolved include filenames
+-- I think for caching's sake I will want the original #include names
+-- and this means that I most likely want an #include callback in preproc
 
---[[
 	local tmpbasefn = 'tmp'
 	local tmpsrcfn = tmpbasefn..'.cpp'
 	local tmpobjfn = './'..tmpbasefn..'.o'	-- TODO getDependentHeaders and paths and objs ...
@@ -171,19 +257,19 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 --[[ hmm TODO eventually, separately include dependencies, only when the dependency doesn't need macros provided from the current file
 -- but establishing that is tough
 	for i=2,#deps do
-		include(deps[i], true)	-- true for sys?  hmm, inc vs abs filename 
+		include(deps[i], true)	-- true for sys?  hmm, inc vs abs filename
 	end
 --]]
 
 	local incdir, incbasename = io.getfiledir('./'..filename)
 --print('incdir', incdir)
---print('incbasename', incbasename) 
+--print('incbasename', incbasename)
 
---[[ use the resolved #include path 
+--[[ use the resolved #include path
 	-- TODO another option - just use the gcc -m option to search include dependency graph
 	-- use require 'make'.getDependentHeaders(src, obj)
 
-	-- TODO since there's a macro for "get the next most file in the include search path" 
+	-- TODO since there's a macro for "get the next most file in the include search path"
 	-- then maybe instead I should be storing these by their original file path
 	-- and in that case ... use preproc:searchForInclude
 	local searchfn = preproc:searchForInclude(filename, sysinc)
@@ -200,7 +286,7 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	end
 	local savedir = io.getfiledir(searchfn)
 --]]
--- [[ or use the path in the #include lookup 
+-- [[ or use the path in the #include lookup
 -- (doesn't require a build environment / preproc to be present ... this way you can save the cache and do the #includes without preproc)
 	local savedir = incdir
 --]]
@@ -221,21 +307,48 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	-- [[
 	local cachedir = cachebasedir..'/'..savedir
 	--]]
---print('cachedir', cachedir)	
+--print('cachedir', cachedir)
 	os.mkdir(cachedir, true)
 
 	local code
 	local cachefilename = cachedir..'/'..incbasename
---print('cachefilename', cachefilename)	
+--print('cachefilename', cachefilename)
 	if os.fileexists(cachefilename) then
 --print'reading code...'
 		code = assert(io.readfile(cachefilename))
+	
+		-- likewise incorporate the include state generated from the include?
+		local statefn = io.getfileext(cachefilename)..'.state.lua'
+		if os.fileexists(statefn) then
+			local state = io.readfile(statefn)
+			if state then
+				state = fromlua(state)
+				for k,v in pairs(state.macros) do
+					preproc.macros[k] = v
+				end
+				for k,v in pairs(state.alreadyIncludedFiles) do
+					preproc.alreadyIncludedFiles[k] = v
+				end
+			end
+		end
 	else
---print'preprocessing...'		
+--print'preprocessing...'
 		timer('preprocessing '..filename, function()
+			--[[ let the preproc find the file
+			local inccode = '#include '
+				..(sysinc and '<' or '"')
+				..filename
+				..(sysinc and '>' or '"')
+				..'\n'	
 			code = preproc(inccode)
+			--]]
+			-- [[ use the preproc search and load it ourselves
+			-- this way the includeCallback doesn't get stuck on repeat
+			local searchfn = assert(preproc:searchForInclude(filename, sysinc))
+			code = preproc((assert(io.readfile(searchfn))))
+			--]]
 		end)
---print'writing...'	
+--print'writing...'
 		io.writefile(cachefilename, code)
 
 		-- NOTICE if I'm saving macros, i can't load them without an interruption to the preproc() at the #include point ...
@@ -256,7 +369,7 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 --print'success!'
 	end, function(err)
 --print"error:"
-		throwme = 
+		throwme =
 --			'macros: '..tolua(preproc.macros)..'\n'..
 			require 'template.showcode'(code)..'\n'
 			..err..'\n'..debug.traceback()
@@ -272,4 +385,10 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	return code, ffi.C
 end
 
-return include
+return setmetatable({
+	preproc = preproc,
+}, {
+	__call = function(self, ...)
+		return include(...)
+	end,
+})
