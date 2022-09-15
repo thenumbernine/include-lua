@@ -17,6 +17,7 @@ it is seeming more and more like preproc, include, and lua-ffi-bindings should a
 
 --]]
 local ffi = require 'ffi'		-- used for OS check and used for verifying that the generated C headers are luajit-ffi compatible
+local file = require 'ext.file'
 local io = require 'ext.io'
 local os = require 'ext.os'
 local string = require 'ext.string'
@@ -49,7 +50,7 @@ if not cachebasedir then
 	assert(home, "Don't know where to store the cache.  maybe set the LUAJIT_INCLUDE_CACHE_PATH environment variable.")
 	cachebasedir = home..'/.luajit.include'
 end
-os.mkdir(cachebasedir, true)
+file(cachebasedir):mkdir(true)
 
 
 -- This is where you include Lua files from
@@ -135,9 +136,9 @@ function Preproc:getIncludeFileCode(found, search)
 	}:concat'\n'
 	--]==]
 	-- [==[ or I could use require
-	local incdir, incbasename = io.getfiledir('./'..search)
+	local incdir, incbasename = file('./'..search):getdir()
 	local savedir = incdir
-	local incbasenamewoext = io.getfileext(incbasename)
+	local incbasenamewoext = file(incbasename):getext()
 print("savedir..'/'..incbasenamewoext", savedir..'/'..incbasenamewoext)
 	local requirefilename = (savedir..'/'..incbasenamewoext)
 		:gsub('/%./', '/')
@@ -160,7 +161,7 @@ print('requirefilename', requirefilename)
 	sub.sysIncludeDirs = table(self.sysIncludeDirs)
 	sub.userIncludeDirs = table(self.userIncludeDirs)
 	-- but this wont cache correctly...
-	local code = sub((assert(io.readfile(found))))
+	local code = sub((assert(file(found):read())))
 	-- TODO at this point the .h will be cached ... how about reading the cache instead of handling it a second time?
 	-- now forward the state
 	for k,v in pairs(table(sub.macros)) do self.macros[k] = v end
@@ -268,7 +269,6 @@ local table = require 'ext.table'
 function makeEnv:resetMacros() self.macros = table() end
 makeEnv:preConfig()
 makeEnv.compileGetIncludeFilesFlag = '-M'	-- gcc default is -MM, which skips system files
-local file = require 'ext.file'
 --]]
 
 --[[
@@ -300,10 +300,10 @@ local function include(filename, sysinc)
 	local tmpbasefn = 'tmp'
 	local tmpsrcfn = tmpbasefn..'.cpp'
 	local tmpobjfn = './'..tmpbasefn..'.o'	-- TODO getDependentHeaders and paths and objs ...
-	file[tmpsrcfn] = table{
+	file(tmpsrcfn):write(table{
 		inccode,
 		'int tmp() {}',
-	}:concat'\n'
+	}:concat'\n')
 	local deps = makeEnv:getDependentHeaders(tmpsrcfn, tmpobjfn)
 	assert(deps:remove(1) == '/usr/include/stdc-predef.h')	-- hmm ... ?
 print('inc deps:\n\t'..deps:concat'\n\t')
@@ -349,8 +349,8 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	end
 --]]
 
-	local incdir, incbasename = io.getfiledir('./'..filename)
-	local incbasenamewoext = io.getfileext(incbasename)
+	local incdir, incbasename = file('./'..filename):getdir()
+	local incbasenamewoext = file(incbasename):getext()
 print('incdir', incdir)
 print('incbasename', incbasename)
 
@@ -373,7 +373,7 @@ print('search', searchfn)
 		end
 print('search Windows fixed', searchfn)
 	end
-	local savedir = io.getfiledir(searchfn)
+	local savedir = file(searchfn):getdir()
 --]]
 -- [[ or use the path in the #include lookup
 -- (doesn't require a build environment / preproc to be present ... this way you can save the cache and do the #includes without preproc)
@@ -389,12 +389,12 @@ print('search Windows fixed', searchfn)
 	local cachedir = cachebasedir..'/'..savedir
 	--]]
 print('cachedir', cachedir)
-	os.mkdir(cachedir, true)
+	file(cachedir):mkdir(true)
 
 	local code
 	local cachefilename = cachedir..'/'..incbasenamewoext..'.lua'
 print('cachefilename', cachefilename)
-	if os.fileexists(cachefilename) then
+	if file(cachefilename):exists() then
 print('file exists')
 	else
 print'preprocessing...'
@@ -410,7 +410,7 @@ print'preprocessing...'
 			-- [[ use the preproc search and load it ourselves
 			-- this way the includeCallback doesn't get stuck on repeat
 			local searchfn = assert(preproc:searchForInclude(filename, sysinc))
-			code = preproc((assert(io.readfile(searchfn))))
+			code = preproc((assert(file(searchfn):read())))
 			--]]
 		end)
 print'writing...'
@@ -434,7 +434,7 @@ print'writing...'
 		-- TODO remove any single-line cdefs of C comments and replace with Lua comments
 		-- or just override the Preproc function for generating C comments, and instead generate a lua comment?
 
-		io.writefile(cachefilename, luacode)
+		file(cachefilename):write(luacode)
 	end
 
 
