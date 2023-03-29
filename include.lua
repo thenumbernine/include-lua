@@ -46,7 +46,7 @@ local Preproc = class(require 'preproc')
 
 local cachebasedir = os.getenv'LUAJIT_INCLUDE_CACHE_PATH'
 if not cachebasedir then
-	local home = os.getenv'HOME' or os.getenv'USERPROFILE'
+	local home = os.home()
 	assert(home, "Don't know where to store the cache.  maybe set the LUAJIT_INCLUDE_CACHE_PATH environment variable.")
 	cachebasedir = home..'/.luajit.include'
 end
