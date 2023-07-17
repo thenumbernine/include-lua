@@ -161,7 +161,7 @@ print('requirefilename', requirefilename)
 	sub.sysIncludeDirs = table(self.sysIncludeDirs)
 	sub.userIncludeDirs = table(self.userIncludeDirs)
 	-- but this wont cache correctly...
-	local code = sub((assert(file(found):read())))
+	local code = sub((assert(path(found):read())))
 	-- TODO at this point the .h will be cached ... how about reading the cache instead of handling it a second time?
 	-- now forward the state
 	for k,v in pairs(table(sub.macros)) do self.macros[k] = v end
