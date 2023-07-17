@@ -17,7 +17,7 @@ it is seeming more and more like preproc, include, and lua-ffi-bindings should a
 
 --]]
 local ffi = require 'ffi'		-- used for OS check and used for verifying that the generated C headers are luajit-ffi compatible
-local file = require 'ext.file'
+local path = require 'ext.path'
 local io = require 'ext.io'
 local os = require 'ext.os'
 local string = require 'ext.string'
@@ -50,7 +50,7 @@ if not cachebasedir then
 	assert(home, "Don't know where to store the cache.  maybe set the LUAJIT_INCLUDE_CACHE_PATH environment variable.")
 	cachebasedir = home..'/.luajit.include'
 end
-file(cachebasedir):mkdir(true)
+path(cachebasedir):mkdir(true)
 
 
 -- This is where you include Lua files from
@@ -60,18 +60,18 @@ local cachebaserequire = os.getenv'LUAJIT_INCLUDE_REQUIRE_BASE'	-- = 'ffi.includ
 -- cheap trick until then, just find a substring
 if not cachebaserequire then
 	local paths = string.split(package.path, ';')
-	for _,path in ipairs(paths) do
+	for _,pathstr in ipairs(paths) do
 		-- remove up to first ?
-		local i = path:find('?', 1, true)
+		local i = pathstr:find('?', 1, true)
 		if i then
-			path = path:sub(1, i-1)
+			pathstr = pathstr:sub(1, i-1)
 		-- else ... how can there be a LUA_PATH option without any ?'s in it?
 		end
-		if path:sub(#path,#path) == '/' then	-- this has to be true, right?  unless there are LUA_PATH entries that insert the require() field midway through a file name
-			if #path < #cachebasedir
-			and path == cachebasedir:sub(1, #path)
+		if pathstr:sub(#pathstr,#pathstr) == '/' then	-- this has to be true, right?  unless there are LUA_PATH entries that insert the require() field midway through a file name
+			if #pathstr < #cachebasedir
+			and pathstr == cachebasedir:sub(1, #pathstr)
 			then
-				local rest = cachebasedir:sub(#path+1)
+				local rest = cachebasedir:sub(#pathstr+1)
 				cachebaserequire = rest:gsub('/', '.') .. '.'
 				print('found cachebaserequire '..cachebaserequire)
 			end
@@ -136,9 +136,9 @@ function Preproc:getIncludeFileCode(found, search)
 	}:concat'\n'
 	--]==]
 	-- [==[ or I could use require
-	local incdir, incbasename = file('./'..search):getdir()
+	local incdir, incbasename = path(search):getdir()
 	local savedir = incdir
-	local incbasenamewoext = file(incbasename):getext()
+	local incbasenamewoext = path(incbasename):getext()
 print("savedir..'/'..incbasenamewoext", savedir..'/'..incbasenamewoext)
 	local requirefilename = (savedir..'/'..incbasenamewoext)
 		:gsub('/%./', '/')
@@ -300,7 +300,7 @@ local function include(filename, sysinc)
 	local tmpbasefn = 'tmp'
 	local tmpsrcfn = tmpbasefn..'.cpp'
 	local tmpobjfn = './'..tmpbasefn..'.o'	-- TODO getDependentHeaders and paths and objs ...
-	file(tmpsrcfn):write(table{
+	path(tmpsrcfn):write(table{
 		inccode,
 		'int tmp() {}',
 	}:concat'\n')
@@ -349,8 +349,8 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 	end
 --]]
 
-	local incdir, incbasename = file('./'..filename):getdir()
-	local incbasenamewoext = file(incbasename):getext()
+	local incdir, incbasename = path(filename):getdir()
+	local incbasenamewoext = path(incbasename):getext()
 print('incdir', incdir)
 print('incbasename', incbasename)
 
@@ -373,7 +373,7 @@ print('search', searchfn)
 		end
 print('search Windows fixed', searchfn)
 	end
-	local savedir = file(searchfn):getdir()
+	local savedir = path(searchfn):getdir()
 --]]
 -- [[ or use the path in the #include lookup
 -- (doesn't require a build environment / preproc to be present ... this way you can save the cache and do the #includes without preproc)
@@ -389,12 +389,12 @@ print('search Windows fixed', searchfn)
 	local cachedir = cachebasedir..'/'..savedir
 	--]]
 print('cachedir', cachedir)
-	file(cachedir):mkdir(true)
+	path(cachedir):mkdir(true)
 
 	local code
 	local cachefilename = cachedir..'/'..incbasenamewoext..'.lua'
 print('cachefilename', cachefilename)
-	if file(cachefilename):exists() then
+	if path(cachefilename):exists() then
 print('file exists')
 	else
 print'preprocessing...'
@@ -410,7 +410,7 @@ print'preprocessing...'
 			-- [[ use the preproc search and load it ourselves
 			-- this way the includeCallback doesn't get stuck on repeat
 			local searchfn = assert(preproc:searchForInclude(filename, sysinc))
-			code = preproc((assert(file(searchfn):read())))
+			code = preproc((assert(path(searchfn):read())))
 			--]]
 		end)
 print'writing...'
@@ -434,7 +434,7 @@ print'writing...'
 		-- TODO remove any single-line cdefs of C comments and replace with Lua comments
 		-- or just override the Preproc function for generating C comments, and instead generate a lua comment?
 
-		file(cachefilename):write(luacode)
+		path(cachefilename):write(luacode)
 	end
 
 
