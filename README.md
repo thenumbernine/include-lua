@@ -14,7 +14,7 @@ Depends on:
 Uses the environment variable `$LUAJIT_INCLUDE_CACHE_PATH` for storing, otherwise uses `$HOME/.luajit.include`.
 
 # Example:
-```
+``` lua
 local ffi = require 'ffi'
 local include = require 'include'
 local stdio = include '<stdio.h>'
