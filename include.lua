@@ -137,7 +137,7 @@ function Preproc:getIncludeFileCode(found, search)
 	--]==]
 	-- [==[ or I could use require
 	local incdir, incbasename = path(search):getdir()
-	local savedir = incdir
+	local savedir = incdir.path
 	local incbasenamewoext = path(incbasename):getext()
 print("savedir..'/'..incbasenamewoext", savedir..'/'..incbasenamewoext)
 	local requirefilename = (savedir..'/'..incbasenamewoext)
@@ -377,7 +377,7 @@ print('search Windows fixed', searchfn)
 --]]
 -- [[ or use the path in the #include lookup
 -- (doesn't require a build environment / preproc to be present ... this way you can save the cache and do the #includes without preproc)
-	local savedir = incdir
+	local savedir = incdir.path
 --]]
 
 	--[[
