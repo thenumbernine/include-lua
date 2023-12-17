@@ -138,7 +138,7 @@ function Preproc:getIncludeFileCode(found, search)
 	-- [==[ or I could use require
 	local incdir, incbasename = path(search):getdir()
 	local savedir = incdir.path
-	local incbasenamewoext = path(incbasename):getext()
+	local incbasenamewoext = path(incbasename):getext().path
 print("savedir..'/'..incbasenamewoext", savedir..'/'..incbasenamewoext)
 	local requirefilename = (savedir..'/'..incbasenamewoext)
 		:gsub('/%./', '/')
@@ -350,7 +350,7 @@ stdc-predef.h is probably always there ... and for generating <stdio.h> it contr
 --]]
 
 	local incdir, incbasename = path(filename):getdir()
-	local incbasenamewoext = path(incbasename):getext()
+	local incbasenamewoext = path(incbasename):getext().path
 print('incdir', incdir)
 print('incbasename', incbasename)
 
