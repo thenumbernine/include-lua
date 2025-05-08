@@ -1972,7 +1972,8 @@ function wrapper.uncompressLua(srcAndLen)
 end
 ]=],
 			}
-			code = code:gsub('%(void%)', '()')
+			-- zlib and libtiff
+			code = code:gsub(string.patescape'(void)', '()')
 			return code
 		end,
 	},
@@ -2719,6 +2720,7 @@ return require 'ffi.load' 'OpenCL'
 		macroincs = {
 			'/usr/local/opt/libtiff/include/tiff.h',
 			'/usr/local/opt/libtiff/include/tiffconf.h',
+			'/usr/local/opt/libtiff/include/tiffvers.h',
 		},
 		--]]
 		--[[ can we fix it with include search paths? no...
@@ -2727,11 +2729,42 @@ return require 'ffi.load' 'OpenCL'
 		},
 		--]]
 		final = function(code, preproc)
-			return makeLibWrapper{
+			for _,k in ipairs{'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'} do
+				code = safegsub(code, string.patescape('typedef '..k..'_t '..k..' __attribute__((deprecated));'), '')
+			end
+			for _,k in ipairs{
+				'U_NEU', 'V_NEU', 'UVSCALE'
+				-- unnecessary:
+				--'D65_X0', 'D65_Y0', 'D65_Z0', 'D50_X0', 'D50_Y0', 'D50_Z0',
+			} do
+				code = removeEnum(code, k..' = %S+')
+			end
+			local code = makeLibWrapper{
 				code = code,
 				preproc = preproc,
 				lib = 'tiff',
+				funcs = ffi.os ~= 'Windows' and {
+[=[
+
+		-- Windows-only ...
+		TIFFOpenW = [[TIFF *TIFFOpenW(wchar_t const *, char const *);]],
+		TIFFOpenWExt = [[TIFF *TIFFOpenWExt(wchar_t const *, char const *, TIFFOpenOptions *opts);]],]=]
+				} or nil,
+				footerCode = table{
+					'-- macros',
+					'',
+					}:append(table{
+							'TIFFLIB_VERSION_STR', 'TIFFLIB_VERSION_STR_MAJ_MIN_MIC', 'D65_X0', 'D65_Y0', 'D65_Z0', 'D50_X0', 'D50_Y0', 'D50_Z0', 'U_NEU', 'V_NEU', 'UVSCALE',
+						}:mapi(function(k)
+							local v = preproc.macros[k]
+							v = v:match'^%((.*)F%)$' or v	-- get rid of those ( ... F) floats
+							return 'wrapper.'..k..' = '..v
+						end)
+					):concat'\n'..'\n',
 			}
+			-- zlib and libtiff
+			code = code:gsub(string.patescape'(void)', '()')
+			return code
 		end,
 	},
 

@@ -132,11 +132,11 @@ function ThisPreproc:luaWithinAGenerateFile()
 	local cur = self.includeStack:last()
 	for _,toInc in ipairs(self.luaIncMacroFiles) do
 		-- TODO cache this search result?
-		local toIncLoc = 
-			toInc:sub(1,1) == '/' 
+		local toIncLoc =
+			toInc:sub(1,1) == '/'
 			and toInc
 			or self:searchForInclude(toInc:sub(2,-2), toInc:sub(1,1) == '<')
---DEBUG:print('searching for', toInc, 'found', toIncLoc)		
+--DEBUG:print('searching for', toInc, 'found', toIncLoc)
 		if toIncLoc == cur then
 			-- then we're in a file to output
 			return true
