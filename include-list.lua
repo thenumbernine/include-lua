@@ -1824,20 +1824,17 @@ local assert = require 'ext.assert'
 if ffi.os == 'Linux' then
 	require 'ffi.req' 'c.unistd'
 	ffi.cdef[[
-typedef unsigned z_crc_t;
 typedef long z_off_t;
 typedef off_t z_off64_t;
 ]]
 elseif ffi.os == 'OSX' then
 	require 'ffi.req' 'c.unistd'
 	ffi.cdef[[
-typedef unsigned long z_crc_t;
 typedef off_t z_off_t;
 typedef z_off_t z_off64_t;
 ]]
 elseif ffi.os == 'Windows' then
 	ffi.cdef[[
-typedef unsigned z_crc_t;
 typedef long z_off_t;
 typedef int64_t z_off64_t;
 ]]

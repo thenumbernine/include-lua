@@ -19,9 +19,9 @@ function ThisPreproc:init(...)
 	ThisPreproc.super.init(self, ...)
 
 	-- here's where #define-generated enums will go
-	self.generatedEnums = {}
+	self.luaGenerateEnums = {}
 	-- ... same populated in-order with {[k] = v}
-	self.generatedEnumsInOrder = table()
+	self.luaGenerateEnumsInOrder = table()
 
 	-- this is assigned when args are processed
 	self.luaBindingIncFiles = table()
@@ -81,7 +81,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 			-- tonumber'010' converts from base 10 *NOT* base 8 ...
 --DEBUG(Preproc:getDefineCode): debugprint('line was', l)
 
-			local oldv = self.generatedEnums[k]
+			local oldv = self.luaGenerateEnums[k]
 			if oldv then
 				if oldv == v then
 					return '/* redefining matching value: '..l..' */'
@@ -93,14 +93,18 @@ function ThisPreproc:getDefineCode(k, v, l)
 			end
 
 --DEBUG:assert.type(v, 'string')
-			self.generatedEnums[k] = v
-			self.generatedEnumsInOrder:insert{[k] = v}
+			if self:luaWithinAGenerateFile() then
+				self.luaGenerateEnums[k] = v
+				self.luaGenerateEnumsInOrder:insert{[k] = v}
+			end
 		else
 			-- string but not number ...
-			if v == '' then
+			if v == ''
+			and self:luaWithinAGenerateFile()
+			then
 				-- is it just '#define SOMETHING' ? then pretend that is '#define SOMETHING 1' and make an enum out of it:
-				self.generatedEnums[k] = 1
-				self.generatedEnumsInOrder:insert{[k] = 1}
+				self.luaGenerateEnums[k] = 1
+				self.luaGenerateEnumsInOrder:insert{[k] = 1}
 			end
 		end
 
@@ -114,6 +118,20 @@ function ThisPreproc:getDefineCode(k, v, l)
 	end
 
 	return ''
+end
+
+-- Returns true if the current file we're in is one of the ones we wanted to spit out bindigns for.
+-- Used to determine what files to save and output enum-macros for, versus which to just save and only use for preprocessing.
+function ThisPreproc:luaWithinAGenerateFile()
+	local cur = self.includeStack:last()
+	for _,toInc in ipairs(self.luaBindingIncFiles) do
+		-- TODO cache this search result?
+		local toIncLoc = self:searchForInclude(toInc:sub(2,-2), toInc:sub(1,1) == '<')
+		if toIncLoc == cur then
+			-- then we're in a file to output
+			return true
+		end
+	end
 end
 
 -- 1) store the search => found include names, then
@@ -512,7 +530,7 @@ return function(inc)
 
 	-- [[ prepend enums / define's to the beginning
 	local lines = table()
-	for _,kv in ipairs(preproc.generatedEnumsInOrder) do
+	for _,kv in ipairs(preproc.luaGenerateEnumsInOrder) do
 		local k, v = next(kv)
 		lines:insert('enum { '..k..' = '..v..' };')
 	end
