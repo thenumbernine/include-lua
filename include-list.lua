@@ -1130,7 +1130,7 @@ enum { WCHAR_MAX = 2147483647 };
 				-- TODO i'm sure this dir will change in the future ...
 				string.patescape('/* ++ BEGIN /usr/include/x86_64-linux-gnu/bits/confname.h */')
 				..'.*'
-				..string.patescape('/* ++ END   /usr/include/x86_64-linux-gnu/bits/confname.h */'),
+				..string.patescape('/* ++ END /usr/include/x86_64-linux-gnu/bits/confname.h */'),
 				[[
 
 /* TODO here I skipped conframe because it was too many mixed enums and ddefines => enums  .... but do I still need to, because it seems to be sorted out. */
@@ -1341,10 +1341,10 @@ return setmetatable({}, {
 			--  /* redefining matching value: #define _Mdouble_\t\tfloat */
 			-- replace 	_Mdouble_complex_ with double _Complex
 			-- from there to
-			--  /* # define _Mdouble_       long double ### string, not number "long double" */
+			--  /* # define _Mdouble_		long double ### string, not number "long double" */
 			-- replace _Mdouble_complex_ with float _Complex
 			-- and from there until then end
-			-- replace _Mdouble_complex_  with long double _Complex
+			-- replace _Mdouble_complex_ with long double _Complex
 			local a = code:find'_Mdouble_complex_ _Mdouble_ _Complex'
 			local b = code:find'define _Mdouble_%s*float'
 			local c = code:find'define _Mdouble_%s*long double'
@@ -1817,7 +1817,6 @@ return setmetatable({}, {
 	{
 		inc = '"KHR/khrplatform.h"',
 		out = 'OSX/KHR/khrplatform.lua',
-		includedirs = {'.'},
 	},
 }:mapi(function(inc)
 	inc.os = 'OSX'
@@ -1972,7 +1971,7 @@ function wrapper.uncompressLua(srcAndLen)
 end
 ]=],
 			}
-			-- zlib libtiff libpng
+			-- zlib libtiff libpng EGL
 			code = code:gsub(string.patescape'(void)', '()')
 			return code
 		end,
@@ -2762,7 +2761,7 @@ return require 'ffi.load' 'OpenCL'
 						end)
 					):concat'\n'..'\n',
 			}
-			-- zlib libtiff libpng
+			-- zlib libtiff libpng EGL
 			code = code:gsub(string.patescape'(void)', '()')
 			return code
 		end,
@@ -2942,9 +2941,9 @@ return require 'ffi.load' 'openblas'
 			code = safegsub(code, 'enum { lapack_int = 0 };', 'typedef int32_t lapack_int;')
 --[[
 #if defined(LAPACK_ILP64)
-#define lapack_int        int64_t
+#define lapack_int		int64_t
 #else
-#define lapack_int        int32_t
+#define lapack_int		int32_t
 #endif
 --]]
 
@@ -3038,7 +3037,7 @@ wrapper.PNG_GAMMA_THRESHOLD = wrapper.PNG_GAMMA_THRESHOLD_FIXED * .00001
 
 ]],
 			}
-			-- zlib libtiff libpng
+			-- zlib libtiff libpng EGL
 			code = code:gsub(string.patescape'(void)', '()')
 			return code
 		end,
@@ -3226,21 +3225,51 @@ return setmetatable({
 	{
 		inc = '<EGL/egl.h>',
 		out = 'EGL.lua',
-		final = function(code)
-			return code .. [[
-return setmetatable({
-	EGL_DONT_CARE = ffi.cast('EGLint', -1),
-	EGL_NO_CONTEXT = ffi.cast('EGLDisplay',0),
-	EGL_NO_DISPLAY = ffi.cast('EGLDisplay',0),
-	EGL_NO_SURFACE = ffi.cast('EGLSurface',0),
-	EGL_UNKNOWN = ffi.cast('EGLint',-1),
-	EGL_DEFAULT_DISPLAY = ffi.cast('EGLNativeDisplayType',0),
-	EGL_NO_SYNC = ffi.cast('EGLSync',0),
-	EGL_NO_IMAGE = ffi.cast('EGLImage',0),
-}, {
-	__index = require 'ffi.load' 'EGL',
-})
+		--[[ TODO I'm trying hard to get KHR/khrplatform.h to be substituted by the preprocessor as a lua-require ...
+		includedirs = ffi.os == 'OSX' and {
+			'/usr/local/include',
+		} or nil,
+		--]]
+		final = function(code, preproc)
+			code = removeEnum(code, 'EGL_FOREVER = 0xffffffffffffffff')
+			code = makeLibWrapper{
+				code = code,
+				preproc = preproc,
+				lib = 'EGL',
+				requires = {
+[===[
+
+-- I'm guessing this is a difference of OS's and not a difference of EGL versions because the header version says it is the same, but the Linux build did void* while the OSX build did int ...
+if ffi.os == 'OSX' then
+	ffi.cdef[[
+typedef int EGLNativeDisplayType;
+typedef void *EGLNativePixmapType;
+typedef void *EGLNativeWindowType;
 ]]
+else
+	ffi.cdef[[
+typedef void *EGLNativeDisplayType;
+typedef khronos_uintptr_t EGLNativePixmapType;
+typedef khronos_uintptr_t EGLNativeWindowType;
+]]
+end]===]
+				},
+				footerCode = [[
+-- macros
+
+wrapper.EGL_DONT_CARE = ffi.cast('EGLint', -1)
+wrapper.EGL_NO_CONTEXT = ffi.cast('EGLDisplay', 0)
+wrapper.EGL_NO_DISPLAY = ffi.cast('EGLDisplay', 0)
+wrapper.EGL_NO_SURFACE = ffi.cast('EGLSurface', 0)
+wrapper.EGL_UNKNOWN = ffi.cast('EGLint', -1)
+wrapper.EGL_DEFAULT_DISPLAY = ffi.cast('EGLNativeDisplayType', 0)
+wrapper.EGL_NO_SYNC = ffi.cast('EGLSync', 0)
+wrapper.EGL_NO_IMAGE = ffi.cast('EGLImage', 0)
+wrapper.EGL_FOREVER = 0xFFFFFFFFFFFFFFFFULL
+]],
+			}
+			code = code:gsub(string.patescape'(void)', '()')
+			return code
 		end,
 	},
 	{
