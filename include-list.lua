@@ -221,7 +221,7 @@ end
 --[[
 args:
 	code = code
-	libname = `lib = require 'ffi.load' '$libname'`
+	lib = `lib = require 'ffi.load' '$lib'`
 	headerCode = string that goes beneath the top require'ffi'
 	footerCode = string that goes above the last `return wrapper`
 	requires = table of strings that goes below the requires picked out of the parsed file.
@@ -238,25 +238,44 @@ local function makeLibWrapper(args)
 
 	-- undo the #include <-> require()'s, since they will go at the top
 	-- but there's none in libjpeg...
-	local requires = table()
 	local reqpat = '^'
 		..string.patescape"]] "
 		.."(require 'ffi%.req' '.*')"
 		..string.patescape" ffi.cdef[["
 		..'$'
-
-	-- TODO here: capture comments.
+	local requires = table()
+	local comments = table()
+	-- capture comments.
+	-- replace the generate.lua-created `]] require 'ffi.req' '.*' ffi.cdef[[` lines with requires to-be-inserted
 	-- strip out all the ++ BEGIN / END ++ ones
 	-- strip out the define ones that are degenerate to enum output, i.e. ending in `### string, number` or `string, not number ""`
 	-- whatever's left put it at the top in Lua comments.
 	for i=1,#lines do
 		local line = lines[i]
+
+		-- search for `]] require 'ffi.req' '...' ffi.cdef[[` lines
 		local req = line:match(reqpat)
 		if req then
 			-- keep it there for ~before-c-h-parser.h to show
 			-- this way header parse errors lines will match up with
 			lines[i] = '// '..line
 			requires:insert(req)
+
+		-- comment is a preproc-generated `/* ++... BEGIN/END ... */` lines
+		elseif line:match'^/%* %++ BEGIN.* %*/$'
+		or line:match'^/%* %++ END.* %*/$'
+		then
+
+		-- comment is enum ouptut
+		elseif line:match'^/%*.*### string, number.*%*/$'
+		or line:match'^/%*.*### string, not number %"%".*%*/$'
+		then
+
+		-- what's left, save
+		elseif line:match'^/%*.*%*/$'
+		or line:match'^//'
+		then
+			comments:insert(line)
 		end
 	end
 
@@ -279,12 +298,22 @@ local function makeLibWrapper(args)
 	code = table{
 		"local ffi = require 'ffi'",
 	}:append(
+		#comments > 0 and {
+			'',
+			'-- comments',
+			'',
+			'--[===[',
+			comments:concat'\n',
+			']===]',
+		} or nil
+	):append(
 		args.headerCode and {string.trim(args.headerCode)} or nil
 	):append{
 		'',
 		'-- typedefs',
 		'',
 		requires:concat'\n',
+		'',
 		'ffi.cdef[[',
 		header.declTypes:mapi(function(node)
 			return node:toC()..';'
@@ -295,7 +324,7 @@ local function makeLibWrapper(args)
 local wrapper
 wrapper = require 'ffi.libwrapper'{]],
 	}:append(
-		args.libname and {[[	lib = require 'ffi.load' ']]..args.libname..[[',]]} or nil
+		args.lib and {[[	lib = require 'ffi.load' ']]..args.lib..[[',]]} or nil
 	):append{
 [[
 	defs = {
@@ -1801,7 +1830,6 @@ includeList:append(table{
 
 -- these come from external libraries (so I don't put them in the c/ subfolder)
 
-
 	{
 		-- ok I either need to have my macros smart-detect when their value is only used for types
 		-- or someone needs to rewrite the zlib.h and zconf.h to use `typedef` instead of `#define` when specifying types.
@@ -1812,7 +1840,7 @@ includeList:append(table{
 		final = function(code, preproc)
 			local code = makeLibWrapper{
 				code = code,
-				libname = 'z',
+				lib = 'z',
 				-- add this beneath this top "local ffi = require 'ffi'"
 				headerCode = [[
 local assert = require 'ext.assert'
@@ -2687,11 +2715,6 @@ return require 'ffi.load' 'OpenCL'
 		out = ffi.os..'/tiff.lua',
 		os = ffi.os,
 		pkgconfig = 'libtiff-4',
-		final = function(code)
-			-- TODO remove ((deprecated))
-			-- TODO remove __attribute__() after functions
-			return code
-		end,
 	},
 
 	-- apt install libjpeg-turbo-dev
@@ -2704,7 +2727,7 @@ return require 'ffi.load' 'OpenCL'
 		final = function(code, preproc)
 			return makeLibWrapper{
 				code = code,
-				libname = 'jpeg',
+				lib = 'jpeg',
 				requires = {
 					"require 'ffi.req' 'c.stdio'	-- for FILE, even though jpeglib.h itself never includes <stdio.h> ... hmm ...",
 
@@ -2902,12 +2925,17 @@ return require 'ffi.load' 'lapacke'
 	-- because they have 'u' suffixes
 	-- same with some other windows #defines
 	-- any that have u i etc i32 i64 etc are being failed by my parser.
-	{inc='<zip.h>', out='zip.lua', final=function(code)
-		code = code .. [[
-return require 'ffi.load' 'zip'
-]]
-		return code
-	end},
+	{
+		inc = '<zip.h>',
+		out = 'zip.lua',
+		final = function(code, preproc)
+			return makeLibWrapper{
+				code = code,
+				preproc = preproc,
+				lib = 'zip',
+			}
+		end,
+	},
 
 	-- produces an "int void" because macro arg-expansion covers already-expanded macro-args
 	{inc='<png.h>', out='png.lua', final=function(code)

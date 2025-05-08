@@ -532,6 +532,14 @@ return function(inc)
 	local lines = table()
 	for _,kv in ipairs(preproc.luaGenerateEnumsInOrder) do
 		local k, v = next(kv)
+
+		-- remove any C number formatting that doesn't work in luajit
+		if v:sub(-1):match'^[Uu]' then
+			-- TODO are luajit enums only 32-bit? signed vs unsigned?
+			-- when will removing this get us in trouble?
+			v = v:sub(1,-2)
+		end
+
 		lines:insert('enum { '..k..' = '..v..' };')
 	end
 	code = code .. '\n' .. lines:concat'\n' .. '\n'
