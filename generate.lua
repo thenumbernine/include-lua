@@ -97,13 +97,10 @@ function ThisPreproc:getDefineCode(k, v, l)
 			self.generatedEnumsInOrder:insert{[k] = v}
 		else
 			-- string but not number ...
-			if
-			v == '' then
-				v = 1
-
-				self.generatedEnums[k] = v
-				self.generatedEnumsInOrder:insert{[k] = v}
-
+			if v == '' then
+				-- is it just '#define SOMETHING' ? then pretend that is '#define SOMETHING 1' and make an enum out of it:
+				self.generatedEnums[k] = 1
+				self.generatedEnumsInOrder:insert{[k] = 1}
 			end
 		end
 
@@ -533,7 +530,7 @@ return function(inc)
 	-- TODO inc.final() before lua code wrapping?
 	-- or make lua code wrapping part of a default inc.final?
 	if inc.final then
-		code = inc.final(code)
+		code = inc.final(code, preproc)
 		assert.type(code, 'string', "expected final() to return a string")
 	end
 

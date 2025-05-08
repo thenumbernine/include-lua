@@ -2691,14 +2691,8 @@ return require 'ffi.load' 'OpenCL'
 	-- windows is using 2.0.4 just because 2.0.3 and cmake is breaking for msvc
 	{
 		inc = '<jpeglib.h>',
-		--[[ os-specific?  I unified it in the lua-ffi-bindings repo ...
-		out = ffi.os..'/jpeg.lua',
-		os = ffi.os,
-		--]]
-		-- [[
 		out = 'jpeg.lua',
-		--]
-		final = function(code)
+		final = function(code, preproc)
 			return makeLibWrapper{
 				code = code,
 				libname = 'jpeg',
@@ -2727,7 +2721,9 @@ end
 
 -- these are #define's in jpeglib.h
 
-wrapper.LIBJPEG_TURBO_VERSION = '3.0.4'
+wrapper.LIBJPEG_TURBO_VERSION = ']]
+	..assert.type(preproc.macros.LIBJPEG_TURBO_VERSION, 'string')
+	..[['
 
 function wrapper.jpeg_create_compress(cinfo)
 	return wrapper.jpeg_CreateCompress(cinfo, wrapper.JPEG_LIB_VERSION, ffi.sizeof'struct jpeg_compress_struct')
