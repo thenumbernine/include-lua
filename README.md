@@ -5,10 +5,8 @@ Useful for LuaJIT FFI cdefs just straight up using the .h files
 Used for generating the code in my [`lua-ffi-bindings`](https://github.com/thenumbernine/lua-ffi-bindings) repo.
 
 Depends on:
+- [C preproc lib](https://github.com/thenumbernine/preproc-lua) for C preprocessing
 - [C H parser lib](https://github.com/thenumbernine/c-h-parser-lua) for C header parsing
-- [preproc lib](https://github.com/thenumbernine/preproc-lua) for C preprocessing
-- [ext lib](https://github.com/thenumbernine/lua-ext)
-- [template lib](https://github.com/thenumbernine/lua-template)
 
 Produces content for my
 - [Lua FFI bindings](https://github.com/thenumbernine/lua-ffi-bindings)

@@ -17,6 +17,7 @@ local assert = require 'ext.assert'
 local string = require 'ext.string'
 local table = require 'ext.table'
 local io = require 'ext.io'
+local os = require 'ext.os'
 local tolua = require 'ext.tolua'
 
 -- needs to match generate.lua or make.lua or wherever i'm setting it.
@@ -196,12 +197,6 @@ local function fixEnumsAndDefineMacrosInterleaved(code)
 	return lines:concat'\n'
 end
 
--- pkgconfig doesn't work on windows so rather than try and fail a lot ...
-local function pkgconfigFlags(name)
-	if ffi.os == 'Windows' then return nil end
-	return string.trim(io.readproc('pkg-config --cflags '..assert(name)))
-end
-
 -- some _asm directives have #sym instead of "sym" and also need their quotes merged ...
 local function fixasm(code)
 	return (code:gsub('__asm(%b())', function(s)
@@ -229,6 +224,7 @@ args:
 --]]
 local function makeLibWrapper(args)
 	local code = assert(args.code)
+--DEBUG:path'~before-makeLibWrapper.h':write(code)
 
 	local lines = string.split(code, '\n')
 	assert.eq(lines:remove(1), "local ffi = require 'ffi'")
@@ -257,8 +253,7 @@ local function makeLibWrapper(args)
 
 	local CHeaderParser = require 'c-h-parser'
 	local header = CHeaderParser()
--- debugging
-path'~before-c-h-parser.h':write(code)
+--DEBUG:path'~before-c-h-parser.h':write(code)
 	assert(header(code))
 
 	if args.insertRequires then
@@ -1834,8 +1829,8 @@ includeList:append(table{
 		-- or someone needs to rewrite the zlib.h and zconf.h to use `typedef` instead of `#define` when specifying types.
 		-- until either happens, I'm copying the zlib locally and changing its `#define` types to `typedef`.
 		inc = '"zlib/zlib.h"',
-		flags = '-I.',
 		out = 'zlib.lua',
+		includedirs = {'.'},
 		final = function(code)
 
 			-- ... then add some macros onto the end manually
@@ -2573,19 +2568,24 @@ return wrapper
 	end},
 
 	-- apt install libnetcdf-dev
-	{inc='<netcdf.h>', out='netcdf.lua', flags=pkgconfigFlags'netcdf', final=function(code)
-		code = code .. [[
+	{
+		inc = '<netcdf.h>',
+		out = 'netcdf.lua',
+		pkgconfig = 'netcdf',
+		final = function(code)
+			code = code .. [[
 return require 'ffi.load' 'netcdf'
 ]]
-		return code
-	end},
+			return code
+		end,
+	},
 
 	-- apt install libhdf5-dev
 	-- depends: inttypes.h
 	{
 		inc = '<hdf5.h>',
 		out = 'hdf5.lua',
-		flags = pkgconfigFlags'hdf5',
+		pkgconfig = 'hdf5',
 		final = function(code)
 			-- old header comment:
 				-- for gcc / ubuntu looks like off_t is defined in either unistd.h or stdio.h, and either are set via testing/setting __off_t_defined
@@ -2616,7 +2616,12 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 			'"imgui_impl_opengl3.h"',
 		},
 		silentincs = {'"imgui.h"'},	-- full of C++ so don't include it
-		flags = '-I/usr/local/include/imgui-1.90.5dock -DCIMGUI_DEFINE_ENUMS_AND_STRUCTS',
+		includedirs = {
+			'/usr/local/include/imgui-1.90.5dock',
+		},
+		macros = {
+			'CIMGUI_DEFINE_ENUMS_AND_STRUCTS',
+		},
 		out = 'cimgui.lua',
 		final = function(code)
 			-- this is already in SDL
@@ -2672,7 +2677,7 @@ return require 'ffi.load' 'OpenCL'
 		inc = '<tiffio.h>',
 		out = ffi.os..'/tiff.lua',
 		os = ffi.os,
-		flags = pkgconfigFlags'libtiff-4',
+		pkgconfig = 'libtiff-4',
 		final = function(code)
 			-- TODO remove ((deprecated))
 			-- TODO remove __attribute__() after functions
@@ -2766,7 +2771,6 @@ end
 		--[[
 		includedirs = ffi.os == 'OSX' and {'.'} or nil,
 		--]]
-		flags = '-DGL_GLEXT_PROTOTYPES',
 		out = ffi.os..'/OpenGL.lua',
 		os = ffi.os,
 		--[[ TODO -framework equivalent ...
@@ -2790,11 +2794,13 @@ end
 			'<specstrings.h>',
 			'<apiset.h>',
 			'<debugapi.h>',
-		} or {},
-		macros = ffi.os == 'Windows' and {
+		} or nil,
+		macros = table{
+			'GL_GLEXT_PROTOTYPES',
+		}:append(ffi.os == 'Windows' and {
 			'WINGDIAPI=',
 			'APIENTRY=',
-		} or nil,
+		} or nil),
 		final = function(code)
 			if ffi.os == 'Windows' then
 				-- TODO this won't work now that I'm separating out KHRplatform.h ...
@@ -2824,7 +2830,7 @@ return require 'ffi.load' 'GL'
 		inc = '<lua.h>',
 		moreincs = {'<lualib.h>', '<lauxlib.h>'},
 		out = 'lua.lua',
-		flags = pkgconfigFlags'lua',
+		pkgconfig = 'lua',
 		final = function(code)
 			code = [[
 ]] .. code .. [[
@@ -2846,7 +2852,7 @@ return require 'ffi.load' 'openblas'
 	{
 		inc = '<lapack.h>',
 		out = 'lapack.lua',
-		flags = pkgconfigFlags'lapack',
+		pkgconfig = 'lapack',
 		final = function(code)
 			-- needs lapack_int replaced with int, except the enum def line
 			-- the def is conditional, but i think this is the right eval ...
@@ -2877,7 +2883,7 @@ return require 'ffi.load' 'lapack'
 	{
 		inc = '<lapacke.h>',
 		out = 'lapacke.lua',
-		flags = pkgconfigFlags'lapacke',
+		pkgconfig = 'lapacke',
 		final = function(code)
 			code = code .. [[
 return require 'ffi.load' 'lapacke'
@@ -2956,11 +2962,8 @@ also HDF5 has a lot of unused enums ...
 	{
 		inc = '<SDL2/SDL.h>',
 		out = 'sdl2.lua',
-		flags = pkgconfigFlags'sdl2',
-		includedirs = ({
-			Windows = {[[C:\Users\Chris\include\SDL2]]},
-			OSX = {[[/usr/local/Cellar/sdl2/2.32.4/include/SDL2/]]},
-		})[ffi.os],
+		pkgconfig = 'sdl2',
+		includedirs = ffi.os == 'Windows' and {os.home()..'/SDL2'} or nil,
 		skipincs = (ffi.os == 'Windows' or ffi.os == 'OSX') and {'<immintrin.h>'} or {},
 		silentincs = (ffi.os == 'Windows' or ffi.os == 'OSX') and {} or {'<immintrin.h>'},
 		final = function(code)
@@ -2988,11 +2991,8 @@ return require 'ffi.load' 'SDL2'
 	{
 		inc = '<SDL3/SDL.h>',
 		out = 'sdl3.lua',
-		flags = pkgconfigFlags'sdl3',
-		includedirs = ({
-			Windows = {[[C:\Users\Chris\include\SDL3]]},
-			OSX = {[[/usr/local/Cellar/sdl2/3.2.10/include/SDL3/]]},
-		})[ffi.os],
+		pkgconfig = 'sdl3',
+		includedirs = ffi.os == 'Windows' and {os.home()..'/SDL2'} or nil,
 		skipincs = (ffi.os == 'Windows' or ffi.os == 'OSX') and {'<immintrin.h>'} or {},
 		silentincs = (ffi.os == 'Windows' or ffi.os == 'OSX') and {} or {'<immintrin.h>'},
 		final = function(code)
@@ -3031,7 +3031,10 @@ return require 'ffi.load' 'SDL3'
 	{
 		inc = '<vorbis/vorbisfile.h>',
 		out = 'vorbis/vorbisfile.lua',
-		flags = '-I/usr/include/vorbis -I/usr/local/include/vorbis',
+		includedirs = {
+			'/usr/include/vorbis',
+			'/usr/local/include/vorbis',
+		},
 		final = function(code)
 			-- the result contains some inline static functions and some static struct initializers which ffi cdef can't handle
 			-- ... I need to comment it out *HERE*.
@@ -3162,15 +3165,24 @@ return require 'ffi.load' 'openal'
 	{
 		inc = '<Python.h>',
 		out = 'python.lua',
-		-- -I/usr/include/python3.11 -I/usr/include/x86_64-linux-gnu/python3.11
-		flags = '-D__NO_INLINE__ -DPIL_NO_INLINE '..(pkgconfigFlags'python3' or ''),
+		pkgconfig = 'python3',
+		--[[
+		includedirs = {
+			'/usr/include/python3.11',
+			'/usr/include/x86_64-linux-gnu/python3.11',
+		},
+		--]]
+		macros = {
+			'__NO_INLINE__',
+			'PIL_NO_INLINE',
+		},
 	},
 
 --[=[	TODO how about a flag for skipping a package in `make.lua all` ?
 	{
 		inc = '<mono/jit/jit.h>',
 		out = 'mono.lua',
-		flags = pkgconfigFlags'mono-2',
+		pkgconfig = 'mono-2',
 		final = function(code)
 			-- enums are ints right ... ?
 			code = safegsub(code, 'typedef (enum %b{})%s*([_%a][_%w]*);', '%1; typedef int %2;')
@@ -3230,8 +3242,11 @@ return ffi.load '/usr/lib/libmono-2.0.so'
 
 	{
 		inc = '<vulkan/vulkan_core.h>',
-		flags = '-I/usr/include/vulkan -I/usr/include/vk_video',
 		out = 'vulkan.lua',
+		includedirs = {
+			'/usr/include/vulkan',
+			'/usr/include/vk_video',
+		},
 		final = function(code)
 			local postdefs = table()
 			code = code:gsub('static const (%S+) (%S+) = ([0-9x]+)ULL;\n',
@@ -3354,5 +3369,40 @@ end
 	end
 end
 
+local class = require 'ext.class'
+local IncludeFile = class()
+function IncludeFile:setupPkgConfig()
+	if self.hasSetupPkgConfig then return end
+	self.hasSetupPkgConfig = true
+
+	if self.pkgconfig
+	-- pkgconfig doesn't work on windows so rather than try and fail a lot ...
+	and ffi.os ~= 'Windows'
+	then
+		local out = string.trim(io.readproc('pkg-config --cflags '..self.pkgconfig))
+		local flags = string.split(out, '%s+')
+
+		-- HERE process -I -D flags
+		for _,f in ipairs(flags) do
+			if f:sub(1,2) == '-D' then
+				assert.gt(#f, 2, 'TODO handle -D <macro>')
+				self.macros = self.macros or table()
+				self.macros:insret(f:sub(3))
+			elseif f:sub(1,2) == '-I' then
+				assert.gt(#f, 2, 'TODO handle -I <incdir>')
+				self.includedirs = self.includedirs or table()
+				self.includedirs:insert(f:sub(3))
+			else
+				error("pkg-config '"..self.pkgconfig.."' has unknown flag "..tostring(f)..'\n'
+					..'pkg-config output: '..out)
+			end
+		end
+	end
+end
+
+for _,inc in ipairs(includeList) do
+	assert(not getmetatable(inc))
+	setmetatable(inc, IncludeFile)
+end
 
 return includeList

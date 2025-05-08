@@ -47,54 +47,12 @@ for _,inc in ipairs(includeList) do
 local ffi = require 'ffi'
 ffi.cdef[[
 ]=]
-			local cmd = table{
-				'luajit',
---DEBUG:		'-lext.debug',	-- debugging? forward debug tags?
-				'generate.lua'
-			}
-			if inc.flags then
-				cmd:insert(inc.flags)
-			end
-			local function addincarg(f)
-				if f:sub(1,1) == '"' then
-					cmd:insert(('%q'):format(f))
-				elseif f:sub(1,1) == '<' then
-					cmd:insert('"'..f..'"')
-				else
-					error'inc /moreincs needs <> or "" wrapper'
-				end
-			end
-			addincarg(inc.inc)
-			if inc.moreincs then
-				for _,f in ipairs(inc.moreincs) do
-					addincarg(f)
-				end
-			end
-			for _,f in ipairs(inc.silentincs or {}) do
-				cmd:insert'-silent'
-				addincarg(f)
-			end
-			for _,f in ipairs(inc.skipincs or {}) do
-				cmd:insert'-skip'
-				addincarg(f)
-			end
-			for _,m in ipairs(inc.includedirs or {}) do
-				cmd:insert('-I'..m)
-			end
-			for _,m in ipairs(inc.macros or {}) do
-				cmd:insert('-D'..m)
-			end
-			if inc.enumGenUnderscoreMacros then
-				cmd:insert'-enumGenUnderscoreMacros'
-			end
-			cmd:append{'>>', outpath:escape()}
+			outpath:append(
+				require 'generate'(inc)
+			)
 
-			cmd = cmd:concat' '
-			assert(os.exec(cmd))
+			outpath:append'\n]]\n'
 
-			outpath:append[=[
-]]
-]=]
 			-- if there's a final-pass on the code then do it
 			if inc.final then
 				assert(outpath:write(
