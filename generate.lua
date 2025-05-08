@@ -81,7 +81,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 			-- ok Lua tonumber hack ...
 			-- tonumber'0x10' converts from base 16 ..
 			-- tonumber'010' converts from base 10 *NOT* base 8 ...
---DEBUG(Preproc:getDefineCode): debugprint('line was', l)
+--DEBUG(Preproc:getDefineCode): print('line was', l)
 
 			local oldv = self.luaGenerateEnums[k]
 			if oldv then
@@ -132,7 +132,11 @@ function ThisPreproc:luaWithinAGenerateFile()
 	local cur = self.includeStack:last()
 	for _,toInc in ipairs(self.luaIncMacroFiles) do
 		-- TODO cache this search result?
-		local toIncLoc = self:searchForInclude(toInc:sub(2,-2), toInc:sub(1,1) == '<')
+		local toIncLoc = 
+			toInc:sub(1,1) == '/' 
+			and toInc
+			or self:searchForInclude(toInc:sub(2,-2), toInc:sub(1,1) == '<')
+--DEBUG:print('searching for', toInc, 'found', toIncLoc)		
 		if toIncLoc == cur then
 			-- then we're in a file to output
 			return true

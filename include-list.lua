@@ -267,8 +267,8 @@ path'~before-makeLibWrapper.h':write(code)
 		then
 
 		-- comment is enum ouptut
-		elseif line:match'^/%*.*### including in Lua enums.*%*/$' 
-		or line:match'^/%* redefining matching value.*%*/$' 
+		elseif line:match'^/%*.*### including in Lua enums.*%*/$'
+		or line:match'^/%* redefining matching value.*%*/$'
 		then
 
 		-- what's left, save
@@ -2710,9 +2710,29 @@ return require 'ffi.load' 'OpenCL'
 	-- depends: stddef.h stdint.h inttypes.h stdio.h stdarg.h
 	{
 		inc = '<tiffio.h>',
-		out = ffi.os..'/tiff.lua',
-		os = ffi.os,
+		out = 'tiff.lua',
 		pkgconfig = 'libtiff-4',
+		includedirs = ffi.os == 'OSX' and {
+			'/usr/local/opt/libtiff/include',
+		} or nil,
+		-- [[ someone somewhere is getting mixed up because of symlinks so ...
+		macroincs = {
+			'/usr/local/opt/libtiff/include/tiff.h',
+			'/usr/local/opt/libtiff/include/tiffconf.h',
+		},
+		--]]
+		--[[ can we fix it with include search paths? no...
+		macroincs = {
+			'<tiffconf.h>',
+		},
+		--]]
+		final = function(code, preproc)
+			return makeLibWrapper{
+				code = code,
+				preproc = preproc,
+				lib = 'tiff',
+			}
+		end,
 	},
 
 	-- apt install libjpeg-turbo-dev
@@ -3449,7 +3469,7 @@ function IncludeFile:setupPkgConfig()
 				self.macros:insret(f:sub(3))
 			elseif f:sub(1,2) == '-I' then
 				assert.gt(#f, 2, 'TODO handle -I <incdir>')
-				self.includedirs = self.includedirs or table()
+				self.includedirs = table(self.includedirs)
 				self.includedirs:insert(f:sub(3))
 			else
 				error("pkg-config '"..self.pkgconfig.."' has unknown flag "..tostring(f)..'\n'
