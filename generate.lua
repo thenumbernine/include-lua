@@ -18,12 +18,105 @@ local ThisPreproc = Preproc:subclass()
 function ThisPreproc:init(...)
 	ThisPreproc.super.init(self, ...)
 
+	-- here's where #define-generated enums will go
+	self.generatedEnums = {}
+
 	-- this is assigned when args are processed
 	self.luaBindingIncFiles = table()
 end
 
 -- [===============[ begin the code for injecting require()'s to previously-generated luajit files
 
+
+function ThisPreproc:getDefineCode(k, v, l)
+	ThisPreproc.super.getDefineCode(self, k, v, l)
+
+	-- handle our enums
+
+	if type(v) == 'string' 	-- exclude the arg-based macros from this -- they will have table values
+	-- ok in luajit you only have so many enums you can use
+	-- an I'm hitting that limit
+	-- so here's a shot in the dark:
+	-- exclude any macros that begin with _ for enum-generation, and assume they are only for internal use
+	and (self.enumGenUnderscoreMacros or k:sub(1,1) ~= '_')
+	then
+
+		-- try to evaluate the value
+		-- TODO will this mess with incomplete macros
+		--v = self:replaceMacros(v)
+
+		-- ok if it's a preprocessor expression then we need it evaluated
+		-- but it could be a non-preproc expression as well, in which case maybe it's a float?
+		local origv = v
+		pcall(function()
+			v = ''..self:parseCondInt(v)
+			-- parseCondExpr returns bool
+		end)
+
+		local vnumstr, vnum
+		for _,suffix in ipairs{'', 'u', 'l', 'z', 'ul', 'uz', 'll', 'ull'} do
+			vnumstr = v:lower():match('(.*)'..suffix..'$')
+			-- TODO optional 's for digit separtors
+			vnum = tonumber(vnumstr)
+			if vnum then
+-- ... extra check to verify that this is in fact an enum?
+				LASTENUMCHECK = (LASTENUMCHECK or 0) + 1
+				-- sometimes it will still fail ... like if it's a 64-bit value ... but I don't want to throw out u ul ull etc suffixes immediately, in case the value associated can still fit inside 32 bits ...
+				if has_ffi and not pcall(ffi.cdef, "enum { ENUMCHECK"..LASTENUMCHECK.." = "..vnum.." }") then
+					vnum = nil
+					vnumstr = nil
+				end
+				break
+			end
+		end
+
+		-- if the value string is a number define
+		local isnumber = vnum
+		if isnumber then
+			-- ok Lua tonumber hack ...
+			-- tonumber'0x10' converts from base 16 ..
+			-- tonumber'010' converts from base 10 *NOT* base 8 ...
+--DEBUG(Preproc:getDefineCode): debugprint('line was', l)
+
+			local oldv = self.generatedEnums[k]
+			if oldv then
+				if oldv == v then
+					return '/* redefining matching value: '..l..' */'
+				else
+					print('/* WARNING: redefining '..k..' from '..tostring(oldv)..' to '..tostring(v).. ' (originally '..tostring(origv)..') */')
+					-- redefine the enum value as well?
+					-- I think in the macro world doing a #define a 1 #define a 2 will get a == 2, albeit with a warning.
+				end
+			end
+
+			self.generatedEnums[k] = v
+
+			assert.type(v, 'string')
+			-- [[ insert in-place? this will cause a luajit error
+			if not v:match'%.'		-- no floats
+			and not v:match'%de[+-]%d'	-- no exps
+			then
+				return 'enum { '..k..' = '..v..' };'
+			else
+				return '/* '..l..' ### string, number '..tolua(v)..' */'
+			end
+			--]]
+		else
+			-- string but not number ...
+			if v == '' then
+				return 'enum { '..k..' = 1 };'
+			else
+				return '/* '..l..' ### string, not number '..tolua(v)..' */'
+			end
+		end
+	-- otherwise if not a string then it's a macro with args or nil
+	else
+-- non-strings are most likely nil for undef or tables for arg macros
+--		return '/* '..l..' ### '..tolua(v, {indent=false})..' */'
+	end
+
+	return ''
+end
 
 -- 1) store the search => found include names, then
 function ThisPreproc:getIncludeFileCode(fn, search, sys)
@@ -416,18 +509,14 @@ return function(inc)
 	end):concat'\n'..'\n')
 
 	--print('macros: '..tolua(preproc.macros)..'\n')
-
 	--io.stderr:write('macros: '..tolua(preproc.macros)..'\n')
 
-	-- see if there's any errors here
-	-- TODO There will almost always be errors if you used -silent, so how about in that case automatically include the luajit of the skipped files?
-	--local result = xpcall(function()
-	--	ffi.cdef(code)
-	--end, function(err)
-	--	io.stderr:write('macros: '..tolua(preproc.macros)..'\n')
-	--	io.stderr:write(err..'\n'..debug.traceback())
-	--end)
-	--os.exit(result and 0 or 1)
+	--[[ prepend enums / define's to the beginning
+	for _,k in ipairs(table.keys(preproc.generatedEnums):sort()) do
+		local v = preproc.generatedEnums[k]
+		lines:insert(1, 'enum { '..k..' = '..v..' };')
+	end
+	--]]
 
 	-- here wrap our code with ffi stuff:
 	local code = table{
