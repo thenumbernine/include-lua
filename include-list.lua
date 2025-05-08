@@ -1809,7 +1809,7 @@ includeList:append(table{
 		inc = '"zlib/zlib.h"',
 		out = 'zlib.lua',
 		includedirs = {'.'},
-		final = function(code)
+		final = function(code, preproc)
 			local code = makeLibWrapper{
 				code = code,
 				libname = 'z',
@@ -1852,7 +1852,10 @@ end
 				footerCode = [=[
 -- macros
 
-wrapper.ZLIB_VERSION = "1.3.1"
+wrapper.ZLIB_VERSION = ]=]
+	..assert.type(preproc.macros.ZLIB_VERSION, 'string') -- macro has quotes in it.
+..[=[
+
 
 function wrapper.zlib_version(...)
 	return wrapper.zlibVersion(...)
