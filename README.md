@@ -1,14 +1,17 @@
 [![Donate via Stripe](https://img.shields.io/badge/Donate-Stripe-green.svg)](https://buy.stripe.com/00gbJZ0OdcNs9zi288)<br>
 
-## lua-include
-
 Useful for LuaJIT FFI cdefs just straight up using the .h files
 
 Used for generating the code in my [`lua-ffi-bindings`](https://github.com/thenumbernine/lua-ffi-bindings) repo.
 
 Depends on:
-- [lua-ext](https://github.com/thenumbernine/lua-ext)
-- [lua-template](https://github.com/thenumbernine/lua-template)
+- [C H parser lib](https://github.com/thenumbernine/c-h-parser-lua) for C header parsing
+- [preproc lib](https://github.com/thenumbernine/preproc-lua) for C preprocessing
+- [ext lib](https://github.com/thenumbernine/lua-ext)
+- [template lib](https://github.com/thenumbernine/lua-template)
+
+Produces content for my
+- [Lua FFI bindings](https://github.com/thenumbernine/lua-ffi-bindings)
 
 ## `make.lua` ##
 
