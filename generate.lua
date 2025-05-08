@@ -254,10 +254,8 @@ return function(inc)
 
 	local preproc = ThisPreproc()
 
-	-- include but don't output these
-	local silentfiles = table()
 	-- don't even include these
-	local skipfiles = table()
+	local skipincs = table()
 
 	if ffi.os == 'Windows' then
 		-- I guess pick these to match the compiler used to build luajit
@@ -380,10 +378,10 @@ return function(inc)
 		end
 		--]=]
 
-		skipfiles:insert'<sal.h>'
-		skipfiles:insert'<vcruntime.h>'
-		--skipfiles:insert'<vcruntime_string.h>'	-- has memcpy ... wonder why did I remove this?
-		--skipfiles:insert'<corecrt_memcpy_s.h>'	-- contains inline functions
+		skipincs:insert'<sal.h>'
+		skipincs:insert'<vcruntime.h>'
+		--skipincs:insert'<vcruntime_string.h>'	-- has memcpy ... wonder why did I remove this?
+		--skipincs:insert'<corecrt_memcpy_s.h>'	-- contains inline functions
 
 		-- how to know where these are?
 		preproc:addIncludeDirs({
@@ -467,8 +465,7 @@ return function(inc)
 		preproc:setMacros{[k]=v}
 	end
 
-	silentfiles:append(inc.silentincs)
-	skipfiles:append(inc.skipincs)
+	skipincs:append(inc.skipincs)
 
 	-- don't ignore underscore enums
 	-- needed by complex.h since there are some _ enums its post-processing depends on
@@ -478,7 +475,7 @@ return function(inc)
 
 	preproc.luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
 
-	for _,rest in ipairs(skipfiles) do
+	for _,rest in ipairs(skipincs) do
 		-- TODO this code is also in preproc.lua in #include filename resolution ...
 		local sys = true
 		local fn = rest:match'^<(.*)>$'
@@ -495,13 +492,17 @@ return function(inc)
 			error("skip: couldn't find "..(sys and "system" or "user").." include file "..search..'\n')
 		end
 
-	io.stderr:write('skipping ', fn,'\n')
+--DEBUG:print('skipping ', fn)
 		-- treat it like we do #pragma once files
 		preproc.alreadyIncludedFiles[fn] = true
 	end
-	for _,fn in ipairs(silentfiles) do
+
+	-- include these files but don't output the results
+	for _,fn in ipairs(inc.silentincs or {}) do
 		preproc("#include "..fn)
 	end
+
+	-- create our list of #include's from inc.inc and inc.moreincs
 	local code = preproc(preproc.luaBindingIncFiles:mapi(function(fn)
 		return '#include '..fn
 	end):concat'\n'..'\n')

@@ -713,17 +713,17 @@ ffi.arch == 'x86' and {
 		out = 'Windows/c/stdarg.lua',
 	},
 
-	-- identical in windows and linux ...
+	-- identical in windows linux osx ...
 	{
 		inc = '<stdbool.h>',
 		out = 'Windows/c/stdbool.lua',
 		final = function(code)
 			-- luajit has its own bools already defined
-			code = commentOutLine(code, 'enum { bool = 0 };')
-			code = commentOutLine(code, 'enum { true = 1 };')
-			code = commentOutLine(code, 'enum { false = 0 };')
+			for _,k in ipairs{'bool = 0', 'true = 1', 'false = 0'} do
+				code = removeEnum(code, k)
+			end
 			return code
-		end
+		end,
 	},
 
 	{
@@ -788,9 +788,9 @@ includeList:append(table{
 	-- depends: bits/wordsize.h
 	{inc='<features.h>', out='Linux/c/features.lua'},
 
-	{inc='<bits/endian.h>',	out='Linux/c/bits/endian.lua'},
-	{inc='<bits/types/locale_t.h>',	out='Linux/c/bits/types/locale_t.lua'},
-	{inc='<bits/types/__sigset_t.h>',	out='Linux/c/bits/types/__sigset_t.lua'},
+	{inc='<bits/endian.h>', out='Linux/c/bits/endian.lua'},
+	{inc='<bits/types/locale_t.h>', out='Linux/c/bits/types/locale_t.lua'},
+	{inc='<bits/types/__sigset_t.h>', out='Linux/c/bits/types/__sigset_t.lua'},
 
 	{inc='<bits/wchar.h>', out='Linux/c/bits/wchar.lua'},
 
@@ -808,15 +808,15 @@ includeList:append(table{
 	{inc='<bits/types.h>', out='Linux/c/bits/types.lua'},
 
 	-- depends: bits/types.h
-	{inc='<bits/stdint-intn.h>',	out='Linux/c/bits/stdint-intn.lua'},
-	{inc='<bits/types/clockid_t.h>',	out='Linux/c/bits/types/clockid_t.lua'},
-	{inc='<bits/types/clock_t.h>',	out='Linux/c/bits/types/clock_t.lua'},
-	{inc='<bits/types/struct_timeval.h>',	out='Linux/c/bits/types/struct_timeval.lua'},
-	{inc='<bits/types/timer_t.h>',	out='Linux/c/bits/types/timer_t.lua'},
-	{inc='<bits/types/time_t.h>',	out='Linux/c/bits/types/time_t.lua'},
+	{inc='<bits/stdint-intn.h>', out='Linux/c/bits/stdint-intn.lua'},
+	{inc='<bits/types/clockid_t.h>', out='Linux/c/bits/types/clockid_t.lua'},
+	{inc='<bits/types/clock_t.h>', out='Linux/c/bits/types/clock_t.lua'},
+	{inc='<bits/types/struct_timeval.h>', out='Linux/c/bits/types/struct_timeval.lua'},
+	{inc='<bits/types/timer_t.h>', out='Linux/c/bits/types/timer_t.lua'},
+	{inc='<bits/types/time_t.h>', out='Linux/c/bits/types/time_t.lua'},
 
 	-- depends: bits/types.h bits/endian.h
-	{inc='<bits/types/struct_timespec.h>',	out='Linux/c/bits/types/struct_timespec.lua'},
+	{inc='<bits/types/struct_timespec.h>', out='Linux/c/bits/types/struct_timespec.lua'},
 
 	{inc='<sys/ioctl.h>', out='Linux/c/sys/ioctl.lua'},
 
@@ -1123,14 +1123,18 @@ return ffi.C
 		return code
 	end},
 
-	-- identical in windows and linux ...
-	{inc='<stdbool.h>', out='Linux/c/stdbool.lua', final=function(code)
-		-- luajit has its own bools already defined
-		code = commentOutLine(code, 'enum { bool = 0 };')
-		code = commentOutLine(code, 'enum { true = 1 };')
-		code = commentOutLine(code, 'enum { false = 0 };')
-		return code
-	end},
+	-- identical in windows linux osx ...
+	{
+		inc = '<stdbool.h>',
+		out = 'Linux/c/stdbool.lua',
+		final = function(code)
+			-- luajit has its own bools already defined
+			for _,k in ipairs{'bool = 0', 'true = 1', 'false = 0'} do
+				code = removeEnum(code, k)
+			end
+			return code
+		end,
+	},
 
 	-- depends: features.h stdint.h
 	{inc='<inttypes.h>', out='Linux/c/inttypes.lua'},
@@ -1155,9 +1159,9 @@ return ffi.C
 			code = replace_SEEK(code)
 			-- this all stems from #define stdin stdin etc
 			-- which itself is just for C99/C89 compat
-			code = commentOutLine(code, 'enum { stdin = 0 };')
-			code = commentOutLine(code, 'enum { stdout = 0 };')
-			code = commentOutLine(code, 'enum { stderr = 0 };')
+			code = removeEnum(code, 'stdin = 0')
+			code = removeEnum(code, 'stdout = 0')
+			code = removeEnum(code, 'stderr = 0')
 			-- for fopen overloading
 			code = code .. [[
 -- special case since in the browser app where I'm capturing fopen for remote requests and caching
@@ -1240,74 +1244,11 @@ return setmetatable({}, {
 		final = function(code)
 			-- i think all these stem from #define A B when the value is a string and not numeric
 			--  but my #define to enum inserter forces something to be produced
-			code = commentOutLine(code, 'enum { SIGIO = 0 };')
-			code = commentOutLine(code, 'enum { SIGCLD = 0 };')
-			code = commentOutLine(code, 'enum { SI_DETHREAD = 0 };')
-			code = commentOutLine(code, 'enum { SI_TKILL = 0 };')
-			code = commentOutLine(code, 'enum { SI_SIGIO = 0 };')
-			code = commentOutLine(code, 'enum { SI_ASYNCIO = 0 };')
-			code = commentOutLine(code, 'enum { SI_ASYNCNL = 0 };')
-			code = commentOutLine(code, 'enum { SI_MESGQ = 0 };')
-			code = commentOutLine(code, 'enum { SI_TIMER = 0 };')
-			code = commentOutLine(code, 'enum { SI_QUEUE = 0 };')
-			code = commentOutLine(code, 'enum { SI_USER = 0 };')
-			code = commentOutLine(code, 'enum { SI_KERNEL = 0 };')
-			--code = commentOutLine(code, 'enum { ILL_%w+ = 0 };')
-			--code = commentOutLine(code, 'enum { __undef_ARG_MAX = 1 };')
-
-			code = commentOutLine(code, 'enum { ILL_ILLOPC = 0 };')
-			code = commentOutLine(code, 'enum { ILL_ILLOPN = 0 };')
-			code = commentOutLine(code, 'enum { ILL_ILLADR = 0 };')
-			code = commentOutLine(code, 'enum { ILL_ILLTRP = 0 };')
-			code = commentOutLine(code, 'enum { ILL_PRVOPC = 0 };')
-			code = commentOutLine(code, 'enum { ILL_PRVREG = 0 };')
-			code = commentOutLine(code, 'enum { ILL_COPROC = 0 };')
-			code = commentOutLine(code, 'enum { ILL_BADSTK = 0 };')
-			code = commentOutLine(code, 'enum { ILL_BADIADDR = 0 };')
-			code = commentOutLine(code, 'enum { FPE_INTDIV = 0 };')
-			code = commentOutLine(code, 'enum { FPE_INTOVF = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTDIV = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTOVF = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTUND = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTRES = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTINV = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTSUB = 0 };')
-			code = commentOutLine(code, 'enum { FPE_FLTUNK = 0 };')
-			code = commentOutLine(code, 'enum { FPE_CONDTRAP = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_MAPERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_ACCERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_BNDERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_PKUERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_ACCADI = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_ADIDERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_ADIPERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_MTEAERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_MTESERR = 0 };')
-			code = commentOutLine(code, 'enum { SEGV_CPERR = 0 };')
-			code = commentOutLine(code, 'enum { BUS_ADRALN = 0 };')
-			code = commentOutLine(code, 'enum { BUS_ADRERR = 0 };')
-			code = commentOutLine(code, 'enum { BUS_OBJERR = 0 };')
-			code = commentOutLine(code, 'enum { BUS_MCEERR_AR = 0 };')
-			code = commentOutLine(code, 'enum { BUS_MCEERR_AO = 0 };')
-			code = commentOutLine(code, 'enum { CLD_EXITED = 0 };')
-			code = commentOutLine(code, 'enum { CLD_KILLED = 0 };')
-			code = commentOutLine(code, 'enum { CLD_DUMPED = 0 };')
-			code = commentOutLine(code, 'enum { CLD_TRAPPED = 0 };')
-			code = commentOutLine(code, 'enum { CLD_STOPPED = 0 };')
-			code = commentOutLine(code, 'enum { CLD_CONTINUED = 0 };')
-			code = commentOutLine(code, 'enum { POLL_IN = 0 };')
-			code = commentOutLine(code, 'enum { POLL_OUT = 0 };')
-			code = commentOutLine(code, 'enum { POLL_MSG = 0 };')
-			code = commentOutLine(code, 'enum { POLL_ERR = 0 };')
-			code = commentOutLine(code, 'enum { POLL_PRI = 0 };')
-			code = commentOutLine(code, 'enum { POLL_HUP = 0 };')
-			code = commentOutLine(code, 'enum { SIGEV_SIGNAL = 0 };')
-			code = commentOutLine(code, 'enum { SIGEV_NONE = 0 };')
-			code = commentOutLine(code, 'enum { SIGEV_THREAD = 0 };')
-			code = commentOutLine(code, 'enum { SIGEV_THREAD_ID = 0 };')
-			code = commentOutLine(code, 'enum { SS_ONSTACK = 0 };')
-			code = commentOutLine(code, 'enum { SS_DISABLE = 0 };')
-
+			for _,k in ipairs{'SIGIO', 'SIGCLD', 'SI_DETHREAD', 'SI_TKILL', 'SI_SIGIO', 'SI_ASYNCIO', 'SI_ASYNCNL', 'SI_MESGQ', 'SI_TIMER', 'SI_QUEUE', 'SI_USER', 'SI_KERNEL', 'ILL_ILLOPC', 'ILL_ILLOPN', 'ILL_ILLADR', 'ILL_ILLTRP', 'ILL_PRVOPC', 'ILL_PRVREG', 'ILL_COPROC', 'ILL_BADSTK', 'ILL_BADIADDR', 'FPE_INTDIV', 'FPE_INTOVF', 'FPE_FLTDIV', 'FPE_FLTOVF', 'FPE_FLTUND', 'FPE_FLTRES', 'FPE_FLTINV', 'FPE_FLTSUB', 'FPE_FLTUNK', 'FPE_CONDTRAP', 'SEGV_MAPERR', 'SEGV_ACCERR', 'SEGV_BNDERR', 'SEGV_PKUERR', 'SEGV_ACCADI', 'SEGV_ADIDERR', 'SEGV_ADIPERR', 'SEGV_MTEAERR', 'SEGV_MTESERR', 'SEGV_CPERR', 'BUS_ADRALN', 'BUS_ADRERR', 'BUS_OBJERR', 'BUS_MCEERR_AR', 'BUS_MCEERR_AO', 'CLD_EXITED', 'CLD_KILLED', 'CLD_DUMPED', 'CLD_TRAPPED', 'CLD_STOPPED', 'CLD_CONTINUED', 'POLL_IN', 'POLL_OUT', 'POLL_MSG', 'POLL_ERR', 'POLL_PRI', 'POLL_HUP', 'SIGEV_SIGNAL', 'SIGEV_NONE', 'SIGEV_THREAD', 'SIGEV_THREAD_ID', 'SS_ONSTACK', 'SS_DISABLE'} do
+				code = removeEnum(code, k..' = 0')
+			end
+			--code = removeEnum(code, 'ILL_%w+ = 0')
+			--code = removeEnum(code, '__undef_ARG_MAX = 1')
 			return code
 		end,
 	},
@@ -1605,13 +1546,17 @@ return statlib
 		final = function(code)
 			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			-- [[ #defines within structs ...
-			code = code:gsub('enum { FP_PREC_24B = 0 };', '')
-			code = code:gsub('enum { FP_PREC_53B = 2 };', '')
-			code = code:gsub('enum { FP_PREC_64B = 3 };', '')
-			code = code:gsub('enum { FP_RND_NEAR = 0 };', '')
-			code = code:gsub('enum { FP_RND_DOWN = 1 };', '')
-			code = code:gsub('enum { FP_RND_UP = 2 };', '')
-			code = code:gsub('enum { FP_CHOP = 3 };', '')
+			for _,k in ipairs{
+				'FP_PREC_24B = 0',
+				'FP_PREC_53B = 2',
+				'FP_PREC_64B = 3',
+				'FP_RND_NEAR = 0',
+				'FP_RND_DOWN = 1',
+				'FP_RND_UP = 2',
+				'FP_CHOP = 3',
+			} do
+				code = removeEnum(code, k)
+			end
 			--]]
 			return code
 		end,
@@ -1664,13 +1609,18 @@ return ffi.C
 
 	{inc='<stdarg.h>', out='OSX/c/stdarg.lua'},
 
-	{inc='<stdbool.h>', out='OSX/c/stdbool.lua', final=function(code)
-		-- luajit has its own bools already defined
-		code = commentOutLine(code, 'enum { bool = 0 };')
-		code = commentOutLine(code, 'enum { true = 1 };')
-		code = commentOutLine(code, 'enum { false = 0 };')
-		return code
-	end},
+	-- identical in windows linux osx ...
+	{
+		inc = '<stdbool.h>',
+		out = 'OSX/c/stdbool.lua',
+		final = function(code)
+			-- luajit has its own bools already defined
+			for _,k in ipairs{'bool = 0', 'true = 1', 'false = 0'} do
+				code = removeEnum(code, k)
+			end
+			return code
+		end,
+	},
 
 	-- depends on <machine/_types.h>
 	{inc='<inttypes.h>', out='OSX/c/inttypes.lua', final=function(code)
@@ -1785,13 +1735,17 @@ return setmetatable({}, {
 		out = 'OSX/c/complex.lua',
 		enumGenUnderscoreMacros = true,
 		final = function(code)
-			code = commentOutLine(code, 'enum { __BEGIN_DECLS = 1 };')
-			code = commentOutLine(code, 'enum { __END_DECLS = 1 };')
-			code = commentOutLine(code, 'enum { __const = 0 };')
-			code = commentOutLine(code, 'enum { __signed = 0 };')
-			code = commentOutLine(code, 'enum { __volatile = 0 };')
-			code = commentOutLine(code, 'enum { __restrict = 0 };')
-			code = commentOutLine(code, 'enum { complex = 0 };')
+			for _,k in ipairs{
+				'__BEGIN_DECLS = 1',
+				'__END_DECLS = 1',
+				'__const = 0',
+				'__signed = 0',
+				'__volatile = 0',
+				'__restrict = 0',
+				'complex = 0',
+			} do
+				code = commentOutLine(code, 'enum { '..k..' };')
+			end
 			return code
 		end,
 	},
@@ -2611,6 +2565,7 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		-- OpenGL i had to separate them
 		-- and OpenGL i put them in OS-specific place
 		inc = '"cimgui.h"',
+		out = 'cimgui.lua',
 		moreincs = {
 			'"imgui_impl_sdl2.h"',
 			'"imgui_impl_opengl3.h"',
@@ -2622,7 +2577,6 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		macros = {
 			'CIMGUI_DEFINE_ENUMS_AND_STRUCTS',
 		},
-		out = 'cimgui.lua',
 		final = function(code)
 			-- this is already in SDL
 			code = safegsub(code,

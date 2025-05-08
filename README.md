@@ -13,34 +13,47 @@ Produces content for my
 
 ## `make.lua` ##
 
-This generates a specific LuaJIT loader file for a specific C include file.
-It accepts either a specific header listed in the `include-list`, or it can generate all provided at once.
-This is separate of `generate.lua` because I need to use separate LuaJIT FFI cdef states, so I just use separate processes.
+This generates a LuaJIT loader file for a requested C include file. e.g.
+```
+./make.lua '<jpeglib.h>'
+```
 
-This is close to becoming what the `include-lua` project intended to be.
-However if you look inside the `include-list` you will see the amount of hand-tuning still required for this to work.
-Until that can all be automated, `include-lua` will be on the shelf for a while.
-
-## `include-list.lua` ##
-
-This contains a list of C to Lua files.
-It is used for automatic generation of all files.
-It is also used for determining when to replace an included file with a previously-generated file.
+It accepts either a specific header listed in the `include-list`, or `al` will generate all in the list in one go.
+It then calls into `generate.lua` to produce the LuaJIT binding file.
+The results are stored in `results/ffi/*`.
 
 ## `generate.lua` ##
 
-This file generates stripped header files from C header files.
-The stripped headers are specific to LuaJIT:
+This file returns a single function `generate(inc)` that acts on an entry in the `include-list.lua` file.
+It generates the LuaJIT binding file by talking to the system compiler (`cl.exe` or `gcc`),
+environment macros, [C preprocessor](https://github.com/thenumbernine/preproc-lua),
+and [C header parser](https://github.com/thenumbernine/c-h-parser-lua).
+
+The C preprocessor will generate parsed headers are specific to LuaJIT:
 - They have `#define` constants replaced with `enum{}`'s.
 - They have function prototypes preserved.
 
-`luajit generate.lua <optional-args> <include-file1> <include-file2> ...`
+## `include-list.lua` ##
 
-optional-args:
-- `-I<include-dir>` = add extra include directory search path
-- `-M<macro-name>[=<macro-value>]` = add extra macro
-- `-silent <include-file>` = include the specified file, but do not include its contents in the header generation.
-- `-skip <include-file>` = don't include the specified file.
+This contains a list of information on converting C to Lua files.
+It is used for the generation of the Lua binding files.
+Include list entries contain the following properties:
+- `inc` = the main `.h` include file , and what the `make.lua` CLI uses to identify what you are trying to generate.  Should be wrapped in `""` or `<>` for user vs system search paths.
+- `out` = the `.lua` file generated.
+- `os` = which `ffi.os` this file is specific to.
+- `moreincs` = A list of any extra `.h` files that should be included in the Lua binding file generation.
+- `skipincs` = A list of `.h` files that the preprocessor should skip over when it encounters an `#include` directive.
+- `silentincs` = A list of `.h` files that should be parsed for the sake of the preprocessor's state, but whose contents should be suppressed from the final Lua binding file.
+- `includedirs` = A list of paths to add to our preprocessor include dir search path.
+- `macros` = A list of entries to initially add to our preprocessor's macros.
+- `pkgconfig` = The name of the `pkg-config ${name} --cflags` script to invoke.  `-D` flags are collected into `inc.macros` and `-I` flags are collected into `inc.includedirs`.
+- `final(code, preproc)` = A final callback on the preprocessor-generated code in case the results need any hand-tuning.
+- `forcecode` = For a rare few files, it's not worth parsing at all.  Set this to just override the whole thing.
+- `dontGen` = For Linux system include files.  Some of the hoops I have to go through to get around generating the Lua equivalents of the Linux system files that are loaded up with preprocessors that error and say "never include this file directly!"...
+- `enumGenUnderscoreMacros` = Used with a small few Linux system include files, I forget exactly why I used this but it was for preventing unnecessary enum output.
+- `ffiload` = Planning on eventually using this for inserting entries into `ffi/load.lua`.
+
+Fair warning, the OS-specific include files in there are pretty terse, but the 3rd party library include generation code is near the bottom and it is all very straightforward.
 
 ## History
 
