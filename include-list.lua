@@ -1972,7 +1972,7 @@ function wrapper.uncompressLua(srcAndLen)
 end
 ]=],
 			}
-			-- zlib and libtiff
+			-- zlib libtiff libpng
 			code = code:gsub(string.patescape'(void)', '()')
 			return code
 		end,
@@ -2762,7 +2762,7 @@ return require 'ffi.load' 'OpenCL'
 						end)
 					):concat'\n'..'\n',
 			}
-			-- zlib and libtiff
+			-- zlib libtiff libpng
 			code = code:gsub(string.patescape'(void)', '()')
 			return code
 		end,
@@ -3008,17 +3008,41 @@ wrapper.ZIP_UINT64_MAX = ]]..preproc.macros.ZIP_UINT64_MAX..'\n'..[[
 	},
 
 	-- produces an "int void" because macro arg-expansion covers already-expanded macro-args
-	{inc='<png.h>', out='png.lua', final=function(code)
-		-- TODO remove contents of pnglibconf.h, or at least the PNG_*_SUPPORTED macros
+	{
+		inc = '<png.h>',
+		out = 'png.lua',
+		macroincs = {
+			'<pngconf.h>',
+			'<pnglibconf.h>',
+		},
+		final = function(code, preproc)
+			-- TODO remove contents of pnglibconf.h, or at least the PNG_*_SUPPORTED macros
 
-		-- still working out macro bugs ... if macro expands arg A then I don't want it to expand arg B
-		code = safegsub(code, 'int void', 'int type');
+			-- still working out macro bugs ... if macro expands arg A then I don't want it to expand arg B
+			--code = safegsub(code, 'int void', 'int type');
 
-		code = code .. [[
-return require 'ffi.load' 'png'
-]]
-		return code
-	end},
+			local code = makeLibWrapper{
+				code = code,
+				preproc = preproc,
+				lib = 'png',
+				footerCode = [[
+-- macros
+
+wrapper.PNG_LIBPNG_VER_STRING = ]]..preproc.macros.PNG_LIBPNG_VER_STRING..'\n'..[[
+wrapper.PNG_HEADER_VERSION_STRING =  ' libpng version '..wrapper.PNG_LIBPNG_VER_STRING..'\n'
+
+-- this is a value in C but a function in Lua
+function wrapper.png_libpng_ver() return wrapper.png_get_header_ver(nil) end
+
+wrapper.PNG_GAMMA_THRESHOLD = wrapper.PNG_GAMMA_THRESHOLD_FIXED * .00001
+
+]],
+			}
+			-- zlib libtiff libpng
+			code = code:gsub(string.patescape'(void)', '()')
+			return code
+		end,
+	},
 
 	-- TODO STILL
 	-- looks like atm i'm using a hand-rolled sdl anyways
