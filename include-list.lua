@@ -3369,6 +3369,15 @@ end
 	end
 end
 
+
+-- remove all those that pertain to other os/arch
+includeList = includeList:filter(function(inc)
+	if inc.os ~= nil and inc.os ~= ffi.os then return end
+	if inc.arch ~= nil and inc.arch ~= ffi.arch then return end
+	return true
+end)
+
+
 local class = require 'ext.class'
 local IncludeFile = class()
 function IncludeFile:setupPkgConfig()

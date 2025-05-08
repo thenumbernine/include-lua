@@ -6,158 +6,159 @@ local io = require 'ext.io'
 local os = require 'ext.os'
 local tolua = require 'ext.tolua'
 
+
+local includeList = require 'include-list'
+
+
+local Preproc = require 'preproc'
+
+local ThisPreproc = Preproc:subclass()
+
+function ThisPreproc:init(...)
+	ThisPreproc.super.init(self, ...)
+
+	-- this is assigned when args are processed
+	self.luaBindingIncFiles = table()
+end
+
+-- [===============[ begin the code for injecting require()'s to previously-generated luajit files
+
+
+-- 1) store the search => found include names, then
+function ThisPreproc:getIncludeFileCode(fn, search, sys)
+	self.mapFromIncludeToSearchFile
+		= self.mapFromIncludeToSearchFile
+		or {}
+	if sys then
+		self.mapFromIncludeToSearchFile[fn] = '<'..search..'>'
+	else
+		self.mapFromIncludeToSearchFile[fn] = '"'..search..'"'
+	end
+	return ThisPreproc.super.getIncludeFileCode(self, fn, search, sys)
+end
+
+-- 2) do a final pass replacing the BEGIN/END's of the found names
+function ThisPreproc:__call(...)
+	local code = ThisPreproc.super.__call(self, ...)
+	local lines = string.split(code, '\n')
+
+	local currentfile
+	local currentluainc
+	local newlines = table()
+--newlines:insert('/* self.luaBindingIncFiles: '..tolua(self.luaBindingIncFiles)..' */')
+	for i,l in ipairs(lines) do
+		-- skip the first BEGIN, cuz this is the BEGIN for the include we are currently generating.
+		-- dont wanna swap out the whole thing
+		if not currentfile then
+			local beginfile = l:match'^/%* %+* BEGIN (.*) %*/$'
+			if beginfile then
+				local search = self.mapFromIncludeToSearchFile[beginfile]
+				if search then
+--newlines:insert('/* search: '..tostring(search)..' */')
+--newlines:insert('/* ... checking self.luaBindingIncFiles: '..tolua(self.luaBindingIncFiles)..' */')
+					-- if beginfile is one of the manually-included files then don't replace it here.
+					if self.luaBindingIncFiles:find(nil, function(o)
+						-- TODO if one is user then dont search for the other in sys, idk which way tho
+						return search:sub(2,-2) == o:sub(2,-2)
+					end) then
+--newlines:insert('/* ... is already in the generate.lua args */')
+					else
+						-- if it's found in includeList then ...
+						local _, replinc = includeList:find(nil, function(o)
+							-- if we're including a system file then it could be <> or ""
+							if search:sub(1,1) == '"' then
+								return o.inc:sub(2,-2) == search:sub(2,-2)
+							else
+								return o.inc == search
+							end
+						end)
+						if not replinc then
+--newlines:insert("/* didn't find */")
+						else
+--newlines:insert('/*  ... found: '..replinc.inc..' */')
+							currentfile = beginfile
+							currentluainc = replinc.out:match'^(.*)%.lua$':gsub('/', '.')
+						end
+					end
+				end
+			end
+			newlines:insert(l)
+		else
+			-- find the end
+			local endfile = l:match'^/%* %+* END   (.*) %*/$'
+			if endfile and endfile == currentfile then
+				-- hmm dilemma here
+				-- currentluainc says where to write the file, which is in $os/$path or $os/$arch/$path or just $path depending on the level of overriding ...
+				-- but the ffi.req *here* needs to just be $path
+				-- but no promises of what the name scheme will be
+				-- (TODO unless I include this info in the include-list.lua ... .specificdir or whatever...)
+				-- so for now i'll just match
+				currentluainc = currentluainc:match('^'..string.patescape(ffi.os)..'%.(.*)$') or currentluainc
+				currentluainc = currentluainc:match('^'..string.patescape(ffi.arch)..'%.(.*)$') or currentluainc
+				newlines:insert("]] require 'ffi.req' '"..currentluainc.."' ffi.cdef[[")
+				-- clear state
+				currentfile = nil
+				currentluainc = nil
+				newlines:insert(l)
+			end
+		end
+	end
+
+	-- [[
+	-- split off all {'s into newlines?
+	lines = newlines
+	newlines = table()
+	for _,l in ipairs(lines) do
+		if l:match'^/%*.*%*/$' then
+			newlines:insert(l)
+		else
+			l = string.trim(l)
+			local i = 1
+			i = l:find('{', i)
+			if not i then
+				newlines:insert(l)
+			else
+				local j = l:find('}', i+1)
+				if j then
+					newlines:insert(l)
+				else
+					newlines:insert(l:sub(1,i))
+					l = string.trim(l:sub(i+1))
+					--i = l:find('{', i+1)
+					if l ~= '' then
+						newlines:insert(l)
+					end
+				end
+			end
+		end
+	end
+	-- add the tab
+	lines = newlines
+	newlines = table()
+	local intab
+	for _,l in ipairs(lines) do
+		if l:match'^/%*.*%*/$' then
+			newlines:insert(l)
+		else
+			if l:sub(1,1) == '}' then intab = false end
+			newlines:insert(intab and '\t'..l or l)
+			if l:sub(-1) == '{' then intab = true end
+		end
+	end
+	--]]
+
+	return newlines:concat'\n'
+end
+
+
+--]===============] end the code for injecting require()'s to previously-generated luajit files
+
+
+
 --[[
 'inc' is one of the entries in the includeList
 --]]
 return function(inc)
-
-	local Preproc = require 'preproc'
-	local ThisPreproc = Preproc:subclass()
-
-	-- this is assigned below when args are processed
-	local incfiles
-
-	-- [===============[ begin the code for injecting require()'s to previously-generated luajit files
-
-
-	local includeList = require 'include-list'
-
-	-- remove all those that pertain to other os/arch
-	includeList = includeList:filter(function(inc)
-		if inc.os ~= nil and inc.os ~= ffi.os then return end
-		if inc.arch ~= nil and inc.arch ~= ffi.arch then return end
-		return true
-	end)
-
-	-- 1) store the search => found include names, then
-	function ThisPreproc:getIncludeFileCode(fn, search, sys)
-		self.mapFromIncludeToSearchFile
-			= self.mapFromIncludeToSearchFile
-			or {}
-		if sys then
-			self.mapFromIncludeToSearchFile[fn] = '<'..search..'>'
-		else
-			self.mapFromIncludeToSearchFile[fn] = '"'..search..'"'
-		end
-		return ThisPreproc.super.getIncludeFileCode(self, fn, search, sys)
-	end
-
-	-- 2) do a final pass replacing the BEGIN/END's of the found names
-	function ThisPreproc:__call(...)
-		local code = ThisPreproc.super.__call(self, ...)
-		local lines = string.split(code, '\n')
-
-		local currentfile
-		local currentluainc
-		local newlines = table()
---newlines:insert('/* incfiles: '..tolua(incfiles)..' */')
-		for i,l in ipairs(lines) do
-			-- skip the first BEGIN, cuz this is the BEGIN for the include we are currently generating.
-			-- dont wanna swap out the whole thing
-			if not currentfile then
-				local beginfile = l:match'^/%* %+* BEGIN (.*) %*/$'
-				if beginfile then
-					local search = self.mapFromIncludeToSearchFile[beginfile]
-					if search then
---newlines:insert('/* search: '..tostring(search)..' */')
---newlines:insert('/* ... checking incfiles: '..tolua(incfiles)..' */')
-						-- if beginfile is one of the manually-included files then don't replace it here.
-						if incfiles:find(nil, function(o)
-							-- TODO if one is user then dont search for the other in sys, idk which way tho
-							return search:sub(2,-2) == o:sub(2,-2)
-						end) then
---newlines:insert('/* ... is already in the generate.lua args */')
-						else
-							-- if it's found in includeList then ...
-							local _, replinc = includeList:find(nil, function(o)
-								-- if we're including a system file then it could be <> or ""
-								if search:sub(1,1) == '"' then
-									return o.inc:sub(2,-2) == search:sub(2,-2)
-								else
-									return o.inc == search
-								end
-							end)
-							if not replinc then
---newlines:insert("/* didn't find */")
-							else
---newlines:insert('/*  ... found: '..replinc.inc..' */')
-								currentfile = beginfile
-								currentluainc = replinc.out:match'^(.*)%.lua$':gsub('/', '.')
-							end
-						end
-					end
-				end
-				newlines:insert(l)
-			else
-				-- find the end
-				local endfile = l:match'^/%* %+* END   (.*) %*/$'
-				if endfile and endfile == currentfile then
-					-- hmm dilemma here
-					-- currentluainc says where to write the file, which is in $os/$path or $os/$arch/$path or just $path depending on the level of overriding ...
-					-- but the ffi.req *here* needs to just be $path
-					-- but no promises of what the name scheme will be
-					-- (TODO unless I include this info in the include-list.lua ... .specificdir or whatever...)
-					-- so for now i'll just match
-					currentluainc = currentluainc:match('^'..string.patescape(ffi.os)..'%.(.*)$') or currentluainc
-					currentluainc = currentluainc:match('^'..string.patescape(ffi.arch)..'%.(.*)$') or currentluainc
-					newlines:insert("]] require 'ffi.req' '"..currentluainc.."' ffi.cdef[[")
-					-- clear state
-					currentfile = nil
-					currentluainc = nil
-					newlines:insert(l)
-				end
-			end
-		end
-
-		-- [[
-		-- split off all {'s into newlines?
-		lines = newlines
-		newlines = table()
-		for _,l in ipairs(lines) do
-			if l:match'^/%*.*%*/$' then
-				newlines:insert(l)
-			else
-				l = string.trim(l)
-				local i = 1
-				i = l:find('{', i)
-				if not i then
-					newlines:insert(l)
-				else
-					local j = l:find('}', i+1)
-					if j then
-						newlines:insert(l)
-					else
-						newlines:insert(l:sub(1,i))
-						l = string.trim(l:sub(i+1))
-						--i = l:find('{', i+1)
-						if l ~= '' then
-							newlines:insert(l)
-						end
-					end
-				end
-			end
-		end
-		-- add the tab
-		lines = newlines
-		newlines = table()
-		local intab
-		for _,l in ipairs(lines) do
-			if l:match'^/%*.*%*/$' then
-				newlines:insert(l)
-			else
-				if l:sub(1,1) == '}' then intab = false end
-				newlines:insert(intab and '\t'..l or l)
-				if l:sub(-1) == '{' then intab = true end
-			end
-		end
-		--]]
-
-		return newlines:concat'\n'
-	end
-
-
-	--]===============] end the code for injecting require()'s to previously-generated luajit files
-
 
 	local preproc = ThisPreproc()
 
@@ -383,7 +384,7 @@ return function(inc)
 
 	-- TODO handle inc.flags ...
 
-	incfiles = table{inc.inc}:append(inc.moreincs)
+	preproc.luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
 
 	for _,rest in ipairs(skipfiles) do
 		-- TODO this code is also in preproc.lua in #include filename resolution ...
@@ -409,7 +410,7 @@ return function(inc)
 	for _,fn in ipairs(silentfiles) do
 		preproc("#include "..fn)
 	end
-	local code = preproc(incfiles:mapi(function(fn)
+	local code = preproc(preproc.luaBindingIncFiles:mapi(function(fn)
 		return '#include '..fn
 	end):concat'\n'..'\n')
 

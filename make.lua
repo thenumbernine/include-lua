@@ -4,15 +4,7 @@ local path = require 'ext.path'
 local table = require 'ext.table'
 local os = require 'ext.os'
 
--- this holds the stuff thats working already
--- but it's a separate file for the sake of generate.lua looking to see what to replace with require()'s
 local includeList = require 'include-list'
--- remove all those that pertain to other os/arch
-includeList = includeList:filter(function(inc)
-	if inc.os ~= nil and inc.os ~= ffi.os then return end
-	if inc.arch ~= nil and inc.arch ~= ffi.arch then return end
-	return true
-end)
 
 local req = ...
 if not req then error("`make.lua all` for all, or `make.lua <sourceIncludeFile.h>`") end
