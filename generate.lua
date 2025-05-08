@@ -2,6 +2,7 @@
 local ffi = require 'ffi'		-- used for OS check and used for verifying that the generated C headers are luajit-ffi compatible
 local table = require 'ext.table'
 local string = require 'ext.string'
+local assert = require 'ext.assert'
 local io = require 'ext.io'
 local os = require 'ext.os'
 local tolua = require 'ext.tolua'
@@ -416,9 +417,7 @@ return function(inc)
 
 	--print('macros: '..tolua(preproc.macros)..'\n')
 
-
 	--io.stderr:write('macros: '..tolua(preproc.macros)..'\n')
-
 
 	-- see if there's any errors here
 	-- TODO There will almost always be errors if you used -silent, so how about in that case automatically include the luajit of the skipped files?
@@ -429,6 +428,22 @@ return function(inc)
 	--	io.stderr:write(err..'\n'..debug.traceback())
 	--end)
 	--os.exit(result and 0 or 1)
+
+	-- here wrap our code with ffi stuff:
+	local code = table{
+		"local ffi = require 'ffi'",
+		"ffi.cdef[[",
+		code,
+		"]]"
+	}:concat'\n'..'\n'
+
+	-- if there's a final-pass on the code then do it
+	-- TODO inc.final() before lua code wrapping?
+	-- or make lua code wrapping part of a default inc.final?
+	if inc.final then
+		code = inc.final(code)
+		assert.type(code, 'string', "expected final() to return a string")
+	end
 
 	return code
 end

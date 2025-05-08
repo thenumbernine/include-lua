@@ -35,24 +35,7 @@ for _,inc in ipairs(includeList) do
 			-- just write it , proly a split between dif os versions
 			outpath:write(inc.forcecode)
 		else
-			outpath:write[=[
-local ffi = require 'ffi'
-ffi.cdef[[
-]=]
-			outpath:append(
-				require 'generate'(inc)
-			)
-
-			outpath:append'\n]]\n'
-
-			-- if there's a final-pass on the code then do it
-			if inc.final then
-				assert(outpath:write(
-					assert(inc.final(
-						assert(outpath:read())
-					), "expected final() to return a string")
-				))
-			end
+			outpath:write(require 'generate'(inc))
 		end
 
 		if ffi.os == 'Windows' then
