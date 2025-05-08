@@ -2,24 +2,17 @@
 
 ## lua-include
 
-If you want to use LuaJIT FFI with typical C `#include` statements.
+This started as an attempt to do a drop-in of C `#include`'s in Lua.
 
-Depends on:
-- [preproc-lua](https://github.com/thenumbernine/preproc-lua)
-- [lua-ext](https://github.com/thenumbernine/lua-ext)
-- [lua-template](https://github.com/thenumbernine/lua-template)
-- LuaJIT
+But from some experience I found that the resulting code always needed some hand-tuning.
 
-Uses the environment variable `$LUAJIT_INCLUDE_CACHE_PATH` for storing, otherwise uses `$HOME/.luajit.include`.
+Then for some reason I built up the hand-tuned section inside of my [preproc](https://github.com/thenumbernine/preproc-lua) project.
 
-# Example:
-``` lua
-local ffi = require 'ffi'
-local include = require 'include'
-local stdio = include '<stdio.h>'
-stdio.printf("testing %d\n", ffi.cast('int64_t', 42))
-```
+Then I realized that I wanted a [C header parser](https://github.com/thenumbernine/c-h-parser-lua) as well as a C preprocessor.
 
-# TODO:
+And now I'm realizing that the Lua binding generator should be separate of the two of them.
 
-- The cache stores by searched filename, but it would be nice if it could also first store by included filename, so that subsequent include's could get the correct file without doing a search (in case it's on a system where the C includes/compile is missing)
+All this to put the results in the [Lua FFI bindings](https://github.com/thenumbernine/lua-ffi-bindings) repo.
+
+So I think I will scrap the old attempt here (which tried automating too much) and replace it with the tried-and-true method that's been built up in preproc, and leave preproc to be dedicated to C preprocessor only.
+
