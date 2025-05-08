@@ -220,7 +220,11 @@ end
 
 --[[
 args:
-	code = code,
+	code = code
+	libname = `lib = require 'ffi.load' '$libname'`
+	headerCode = string that goes beneath the top require'ffi'
+	footerCode = string that goes above the last `return wrapper`
+	requires = table of strings that goes below the requires picked out of the parsed file.
 --]]
 local function makeLibWrapper(args)
 	local code = assert(args.code)
@@ -237,15 +241,22 @@ local function makeLibWrapper(args)
 	local requires = table()
 	local reqpat = '^'
 		..string.patescape"]] "
-		.."(require 'ffi.req' '.*')"
-		..string.patescape"' ffi.cdef[["
+		.."(require 'ffi%.req' '.*')"
+		..string.patescape" ffi.cdef[["
 		..'$'
-	for i=#lines,1,-1 do
+
+	-- TODO here: capture comments.
+	-- strip out all the ++ BEGIN / END ++ ones
+	-- strip out the define ones that are degenerate to enum output, i.e. ending in `### string, number` or `string, not number ""`
+	-- whatever's left put it at the top in Lua comments.
+	for i=1,#lines do
 		local line = lines[i]
 		local req = line:match(reqpat)
 		if req then
-			lines:remove(i)
-			requires:insert(1, req)
+			-- keep it there for ~before-c-h-parser.h to show
+			-- this way header parse errors lines will match up with
+			lines[i] = '// '..line
+			requires:insert(req)
 		end
 	end
 
@@ -254,15 +265,25 @@ local function makeLibWrapper(args)
 	local CHeaderParser = require 'c-h-parser'
 	local header = CHeaderParser()
 --DEBUG:path'~before-c-h-parser.h':write(code)
-	assert(header(code))
+	local success, msg = header(code)
+	if not success then
+		path'~before-c-h-parser.h':write(code)
+		error("C header parser failed: "..tostring(msg)..'\n'
+			..'check your "~before-c-h-parser.h" for the output that the parser choked on.')
+	end
 
-	if args.insertRequires then
-		requires = table(args.insertRequires):append(requires)
+	if args.requires then
+		requires:append(args.requires)
 	end
 
 	code = table{
 		"local ffi = require 'ffi'",
-		'\n-- typedefs\n',
+	}:append(
+		args.headerCode and {string.trim(args.headerCode)} or nil
+	):append{
+		'',
+		'-- typedefs',
+		'',
 		requires:concat'\n',
 		'ffi.cdef[[',
 		header.declTypes:mapi(function(node)
@@ -301,15 +322,18 @@ wrapper = require 'ffi.libwrapper'{]],
 				..name..' = [['
 				..node:toC()
 				..';]],'
-		end):concat'\n',
+		end)
+		:append(args.funcs)
+		:concat'\n',
 	}:append(
 		libDefs and {'\t\t'..libDefs:gsub('\n', '\n\t\t')} or nil
 	):append{
 		[[
 	},
-}]],
+}
+]],
 	}:append(
-		args.footerCode and {args.footerCode} or nil
+		args.footerCode and {string.trim(args.footerCode)..'\n'} or nil
 	):append{
 		'return wrapper',
 	}:concat'\n'..'\n'
@@ -1786,15 +1810,46 @@ includeList:append(table{
 		out = 'zlib.lua',
 		includedirs = {'.'},
 		final = function(code)
+			local code = makeLibWrapper{
+				code = code,
+				libname = 'z',
+				-- add this beneath this top "local ffi = require 'ffi'"
+				headerCode = [[
+local assert = require 'ext.assert'
+]],
+				-- add extra type stuff here
+				requires = table{
+					[=[
 
-			-- ... then add some macros onto the end manually
-			code = code .. [=[
-local wrapper
-wrapper = require 'ffi.libwrapper'{
-	lib = require 'ffi.load' 'z',
-	defs = {},
-}
-
+if ffi.os == 'Linux' then
+	require 'ffi.req' 'c.unistd'
+	ffi.cdef[[
+typedef unsigned z_crc_t;
+typedef long z_off_t;
+typedef off_t z_off64_t;
+]]
+elseif ffi.os == 'OSX' then
+	require 'ffi.req' 'c.unistd'
+	ffi.cdef[[
+typedef unsigned long z_crc_t;
+typedef off_t z_off_t;
+typedef z_off_t z_off64_t;
+]]
+elseif ffi.os == 'Windows' then
+	ffi.cdef[[
+typedef unsigned z_crc_t;
+typedef long z_off_t;
+typedef int64_t z_off64_t;
+]]
+end
+]=],
+				},
+				-- Then add our windows-only symbol if we're not on windows ...
+				funcs = ffi.os ~= 'Window' and {
+					[=[		gzopen_w = [[gzFile gzopen_w(wchar_t const *path, char const *mode);]], -- Windows-only]=],
+				},
+				-- ... then add some macros onto the end manually
+				footerCode = [=[
 -- macros
 
 wrapper.ZLIB_VERSION = "1.3.1"
@@ -1889,9 +1944,9 @@ function wrapper.uncompressLua(srcAndLen)
 	assert(wrapper.pcall('uncompress', dst, ffi.cast('uLongf*', dstLen), src, srcLen))
 	return ffi.string(dst, dstLen[0])
 end
-
-return wrapper
-]=]
+]=],
+			}
+			code = code:gsub('%(void%)', '()')
 			return code
 		end,
 	},
@@ -2650,7 +2705,7 @@ return require 'ffi.load' 'OpenCL'
 			return makeLibWrapper{
 				code = code,
 				libname = 'jpeg',
-				insertRequires = {
+				requires = {
 					"require 'ffi.req' 'c.stdio'	-- for FILE, even though jpeglib.h itself never includes <stdio.h> ... hmm ...",
 
 					-- I guess I have to hard-code the OS-specific typedef stuff that goes in the header ...
