@@ -2,7 +2,7 @@
 
 Useful for LuaJIT FFI cdefs just straight up using the .h files
 
-Used for generating the code in my [`lua-ffi-bindings`](https://github.com/thenumbernine/lua-ffi-bindings) repo.
+Used for generating the code in my [Lua FFI bindings](https://github.com/thenumbernine/lua-ffi-bindings) repo.
 
 Depends on:
 - [C preproc lib](https://github.com/thenumbernine/preproc-lua) for C preprocessing

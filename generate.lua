@@ -20,6 +20,8 @@ function ThisPreproc:init(...)
 
 	-- here's where #define-generated enums will go
 	self.generatedEnums = {}
+	-- ... same populated in-order with {[k] = v}
+	self.generatedEnumsInOrder = table()
 
 	-- this is assigned when args are processed
 	self.luaBindingIncFiles = table()
@@ -30,6 +32,7 @@ end
 
 function ThisPreproc:getDefineCode(k, v, l)
 	ThisPreproc.super.getDefineCode(self, k, v, l)
+--DEBUG:print('//', tolua(k), tolua(v), tolua(l))
 
 	-- handle our enums
 
@@ -89,26 +92,24 @@ function ThisPreproc:getDefineCode(k, v, l)
 				end
 			end
 
+--DEBUG:assert.type(v, 'string')
 			self.generatedEnums[k] = v
-
-			assert.type(v, 'string')
-			-- [[ insert in-place? this will cause a luajit error
-			if not v:match'%.'		-- no floats
-			and not v:match'%de[+-]%d'	-- no exps
-			then
-				return 'enum { '..k..' = '..v..' };'
-			else
-				return '/* '..l..' ### string, number '..tolua(v)..' */'
-			end
-			--]]
+			self.generatedEnumsInOrder:insert{[k] = v}
 		else
 			-- string but not number ...
-			if v == '' then
-				return 'enum { '..k..' = 1 };'
-			else
-				return '/* '..l..' ### string, not number '..tolua(v)..' */'
+			if
+			v == '' then
+				v = 1
+
+				self.generatedEnums[k] = v
+				self.generatedEnumsInOrder:insert{[k] = v}
+
 			end
 		end
+
+		return '/* '..l..' ### string, '
+			..(isnumber and 'number' or 'not number')
+			..' '..tolua(v)..' */'
 	-- otherwise if not a string then it's a macro with args or nil
 	else
 -- non-strings are most likely nil for undef or tables for arg macros
@@ -511,11 +512,13 @@ return function(inc)
 	--print('macros: '..tolua(preproc.macros)..'\n')
 	--io.stderr:write('macros: '..tolua(preproc.macros)..'\n')
 
-	--[[ prepend enums / define's to the beginning
-	for _,k in ipairs(table.keys(preproc.generatedEnums):sort()) do
-		local v = preproc.generatedEnums[k]
-		lines:insert(1, 'enum { '..k..' = '..v..' };')
+	-- [[ prepend enums / define's to the beginning
+	local lines = table()
+	for _,kv in ipairs(preproc.generatedEnumsInOrder) do
+		local k, v = next(kv)
+		lines:insert('enum { '..k..' = '..v..' };')
 	end
+	code = code .. '\n' .. lines:concat'\n' .. '\n'
 	--]]
 
 	-- here wrap our code with ffi stuff:
