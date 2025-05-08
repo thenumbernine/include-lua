@@ -228,7 +228,7 @@ args:
 --]]
 local function makeLibWrapper(args)
 	local code = assert(args.code)
---DEBUG:path'~before-makeLibWrapper.h':write(code)
+path'~before-makeLibWrapper.h':write(code)
 
 	local lines = string.split(code, '\n')
 	assert.eq(lines:remove(1), "local ffi = require 'ffi'")
@@ -267,8 +267,8 @@ local function makeLibWrapper(args)
 		then
 
 		-- comment is enum ouptut
-		elseif line:match'^/%*.*### string, number.*%*/$'
-		or line:match'^/%*.*### string, not number %"%".*%*/$'
+		elseif line:match'^/%*.*### including in Lua enums.*%*/$' 
+		or line:match'^/%* redefining matching value.*%*/$' 
 		then
 
 		-- what's left, save
@@ -283,10 +283,9 @@ local function makeLibWrapper(args)
 
 	local CHeaderParser = require 'c-h-parser'
 	local header = CHeaderParser()
---DEBUG:path'~before-c-h-parser.h':write(code)
+path'~before-c-h-parser.h':write(code)
 	local success, msg = header(code)
 	if not success then
-		path'~before-c-h-parser.h':write(code)
 		error("C header parser failed: "..tostring(msg)..'\n'
 			..'check your "~before-c-h-parser.h" for the output that the parser choked on.')
 	end
@@ -302,9 +301,9 @@ local function makeLibWrapper(args)
 			'',
 			'-- comments',
 			'',
-			'--[===[',
+			'--[[',
 			comments:concat'\n',
-			']===]',
+			'--]]',
 		} or nil
 	):append(
 		args.headerCode and {string.trim(args.headerCode)} or nil
@@ -1866,8 +1865,7 @@ elseif ffi.os == 'Windows' then
 typedef long z_off_t;
 typedef int64_t z_off64_t;
 ]]
-end
-]=],
+end]=],
 				},
 				-- Then add our windows-only symbol if we're not on windows ...
 				funcs = ffi.os ~= 'Window' and {
@@ -2723,6 +2721,11 @@ return require 'ffi.load' 'OpenCL'
 	-- windows is using 2.0.4 just because 2.0.3 and cmake is breaking for msvc
 	{
 		inc = '<jpeglib.h>',
+		macroincs = {
+			-- these are for the macro preprocessor to know what macros to keep for emitting into enums, vs which to throw out
+			'<jconfig.h>',
+			'<jmorecfg.h>',
+		},
 		out = 'jpeg.lua',
 		final = function(code, preproc)
 			return makeLibWrapper{
@@ -2746,8 +2749,7 @@ else
 typedef long INT32;
 typedef int boolean;
 ]]
-end
-]=]
+end]=]
 				},
 				footerCode = [[
 
@@ -2927,12 +2929,27 @@ return require 'ffi.load' 'lapacke'
 	-- any that have u i etc i32 i64 etc are being failed by my parser.
 	{
 		inc = '<zip.h>',
+		macroincs = {
+			-- these are for the macro preprocessor to know what macros to keep for emitting into enums, vs which to throw out
+			'<zipconf.h>'
+		},
 		out = 'zip.lua',
 		final = function(code, preproc)
+			-- I'll just put these in the macros since they don't fit in luajit enums ...
+			code = removeEnum(code, 'ZIP_INT64_MAX = [^\n]*')
+			code = removeEnum(code, 'ZIP_UINT64_MAX = [^\n]*')
+			-- TODO get ZIP_UINT32_MAX working
 			return makeLibWrapper{
 				code = code,
 				preproc = preproc,
 				lib = 'zip',
+				footerCode = [[
+-- macros
+
+wrapper.LIBZIP_VERSION = ]]..preproc.macros.LIBZIP_VERSION..'\n'..[[
+wrapper.ZIP_INT64_MAX = ]]..preproc.macros.ZIP_INT64_MAX..'\n'..[[
+wrapper.ZIP_UINT64_MAX = ]]..preproc.macros.ZIP_UINT64_MAX..'\n'..[[
+]]
 			}
 		end,
 	},

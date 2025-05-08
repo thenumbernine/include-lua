@@ -29,6 +29,7 @@ end
 
 -- [===============[ begin the code for injecting require()'s to previously-generated luajit files
 
+local cNumberSuffixes = table{'', 'u', 'l', 'z', 'ul', 'lu', 'uz', 'll', 'ull'}
 
 function ThisPreproc:getDefineCode(k, v, l)
 	ThisPreproc.super.getDefineCode(self, k, v, l)
@@ -57,7 +58,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 		end)
 
 		local vnumstr, vnum
-		for _,suffix in ipairs{'', 'u', 'l', 'z', 'ul', 'uz', 'll', 'ull'} do
+		for _,suffix in ipairs(cNumberSuffixes) do
 			vnumstr = v:lower():match('(.*)'..suffix..'$')
 			-- TODO optional 's for digit separtors
 			vnum = tonumber(vnumstr)
@@ -75,6 +76,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 
 		-- if the value string is a number define
 		local isnumber = vnum
+		local reason = 'UNDEFINED'
 		if isnumber then
 			-- ok Lua tonumber hack ...
 			-- tonumber'0x10' converts from base 16 ..
@@ -96,21 +98,25 @@ function ThisPreproc:getDefineCode(k, v, l)
 			if self:luaWithinAGenerateFile() then
 				self.luaGenerateEnums[k] = v
 				self.luaGenerateEnumsInOrder:insert{[k] = v}
+				reason = 'including in Lua enums'
+			else
+				reason = 'skipping, not a specified file: '..self.includeStack:last()
 			end
 		else
 			-- string but not number ...
-			if v == ''
-			and self:luaWithinAGenerateFile()
-			then
+			if v ~= '' then
+				reason = 'skipping, macro is not a number'
+			elseif not self:luaWithinAGenerateFile() then
+				reason = 'skipping, not a specified file: '..self.includeStack:last()
+			else
 				-- is it just '#define SOMETHING' ? then pretend that is '#define SOMETHING 1' and make an enum out of it:
 				self.luaGenerateEnums[k] = 1
-				self.luaGenerateEnumsInOrder:insert{[k] = 1}
+				self.luaGenerateEnumsInOrder:insert{[k] = '1'}
+				reason = 'including in Lua enums'
 			end
 		end
 
-		return '/* '..l..' ### string, '
-			..(isnumber and 'number' or 'not number')
-			..' '..tolua(v)..' */'
+		return '/* '..l..' ### '..reason..' '..tolua(v)..' */'
 	-- otherwise if not a string then it's a macro with args or nil
 	else
 -- non-strings are most likely nil for undef or tables for arg macros
@@ -124,7 +130,7 @@ end
 -- Used to determine what files to save and output enum-macros for, versus which to just save and only use for preprocessing.
 function ThisPreproc:luaWithinAGenerateFile()
 	local cur = self.includeStack:last()
-	for _,toInc in ipairs(self.luaBindingIncFiles) do
+	for _,toInc in ipairs(self.luaIncMacroFiles) do
 		-- TODO cache this search result?
 		local toIncLoc = self:searchForInclude(toInc:sub(2,-2), toInc:sub(1,1) == '<')
 		if toIncLoc == cur then
@@ -492,6 +498,7 @@ return function(inc)
 	-- TODO handle inc.flags ...
 
 	preproc.luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
+	preproc.luaIncMacroFiles = table(preproc.luaBindingIncFiles):append(inc.macroincs)
 
 	for _,rest in ipairs(skipincs) do
 		-- TODO this code is also in preproc.lua in #include filename resolution ...
@@ -534,10 +541,14 @@ return function(inc)
 		local k, v = next(kv)
 
 		-- remove any C number formatting that doesn't work in luajit
-		if v:sub(-1):match'^[Uu]' then
-			-- TODO are luajit enums only 32-bit? signed vs unsigned?
-			-- when will removing this get us in trouble?
-			v = v:sub(1,-2)
+		-- TODO are luajit enums only 32-bit? signed vs unsigned?
+		-- when will removing this get us in trouble?
+		for _,suffix in ipairs(cNumberSuffixes) do
+			vnumstr = v:lower():match('(.*)'..suffix..'$')
+			if vnumstr then
+				--v = tostring((assert(tonumber(vnumstr))))
+				v = vnumstr	-- use as is but truncated
+			end
 		end
 
 		lines:insert('enum { '..k..' = '..v..' };')

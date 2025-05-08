@@ -52,35 +52,53 @@ Include list entries contain the following properties:
 - `dontGen` = For Linux system include files.  Some of the hoops I have to go through to get around generating the Lua equivalents of the Linux system files that are loaded up with preprocessors that error and say "never include this file directly!"...
 - `enumGenUnderscoreMacros` = Used with a small few Linux system include files, I forget exactly why I used this but it was for preventing unnecessary enum output.
 - `ffiload` = Planning on eventually using this for inserting entries into `ffi/load.lua`.
+- `macroincs` = List of `.h`'s, in addition to `inc` and `moreincs` that the preprocessor should save `#define` numeric values to convert into enums.
 
 Fair warning, the OS-specific include files in there are pretty terse, but the 3rd party library include generation code is near the bottom and it is all very straightforward.
 
-## History
+### `makeLibWrapper()`
 
-This started as an attempt to do a drop-in of C `#include`'s in Lua.
+Some of the `include-list.lua` entries make use of the `makeLibWrapper()` function.
+This will produce a moreso organize LuaJIT binding code that is designed to defer loading symbols until they are used.
+These files will look like the following:
 
-But from some experience I found that the resulting code always needed some hand-tuning.
+``` Lua
+local ffi = require 'ffi'
 
-Then for some reason I built up the hand-tuned section inside of my [preproc](https://github.com/thenumbernine/preproc-lua) project.
+-- comments
 
-Then I realized that I wanted a [C header parser](https://github.com/thenumbernine/c-h-parser-lua) as well as a C preprocessor.
+--[[
+# comments and indecypherable macros go here
+--]]
 
-And now I'm realizing that the Lua binding generator should be separate of the two of them.
+-- typedefs
 
-All this to put the results in the [Lua FFI bindings](https://github.com/thenumbernine/lua-ffi-bindings) repo.
+-- C #include to Lua require() calls co here.
+require 'ffi.req' 'c.stdio'
+require 'ffi.req' 'c.stdlib'
+require 'ffi.req' 'c.etc'
+...
 
-So I think I will scrap the old attempt here (which tried automating too much) and replace it with the tried-and-true method that's been built up in preproc, and leave preproc to be dedicated to C preprocessor only.
+ffi.cdef[[
+// C typedefs, named structs, and named enums go here.
+...
+]]
 
-## TODO / Things I'm Considering
+local wrapper
+wrapper = require 'ffi.libwrapper'{
+	defs = {
+		-- enums
+			-- unnamed enum key/values go here, to be loaded upon their first reference.
+		...
 
-- Should `.code` hold the last file processed, or the total files processed?
+		-- functions
+			-- symbols (functions and extern-variables) go here, to be loaded upon their first reference.
+		...
+	},
+}
 
-- If I'm in the middle of a typedef or `enum` or something with `{}`'s, I should wait to insert the `#define` => `enum{}` code.  (`pthread.h`)
+-- macros
+...
 
-- Hitting the table upper limit of `ffi.C` is easy to do with all the symbols generated.
-To get around this I've created [`libwrapper.lua`](https://github.com/thenumbernine/lua-ffi-bindings/blob/master/libwrapper.lua) in my [lua-ffi-bindings](https://github.com/thenumbernine/lua-ffi-bindings) project.
-`libwrapper` gives each library its own unique table and defers loading of enums or functions until after they are referenced.
-This gets around the LuaJIT table limit.  Now you can export every symbol in your header without LuaJIT giving an error.
-But for now the headers are manually ported from `preproc` output to `libwrapper` output.  In the future I might autogen `libwrapper` output.
-- ... but not for long!  I made a [c-h-parser](https://github.com/thenumbernine/c-h-parser-lua) as a subclass of my [parser](https://github.com/thenumbernine/lua-parser) library, and now I can use it to auto-generate the libwrappers instead of by hand.
-- ... but now its one big problem is inserting `#define` enums versus inserting enum-enums ... TODO FIXME ...
+return wrapper
+```
