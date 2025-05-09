@@ -2810,12 +2810,14 @@ return require 'ffi.load' 'GLESv2'
 		end,
 	},
 	{
-		inc = ffi.os ~= 'OSX'
-			and '<AL/al.h>'
-			or '"OpenAL/OpenAL.h"',	-- bleh too tired to go through the same struggles as with OpenGL on OSX ...
+		-- brew install openal-soft
+		inc = '<AL/al.h>',
 		moreincs = {
 			'<AL/alc.h>',
 		},
+		includedirs = ffi.os == 'OSX' and {
+			'/usr/local/opt/openal-soft/include',
+		} or nil,
 		out = 'OpenAL.lua',
 		final = function(code)
 			return code .. [[
@@ -3061,7 +3063,7 @@ function IncludeFile:setupPkgConfig()
 			if f:sub(1,2) == '-D' then
 				assert.gt(#f, 2, 'TODO handle -D <macro>')
 				self.macros = self.macros or table()
-				self.macros:insret(f:sub(3))
+				self.macros:insert(f:sub(3))
 			elseif f:sub(1,2) == '-I' then
 				assert.gt(#f, 2, 'TODO handle -I <incdir>')
 				self.includedirs = table(self.includedirs)
