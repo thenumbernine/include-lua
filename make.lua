@@ -3,10 +3,10 @@ local ffi = require 'ffi'
 local path = require 'ext.path'
 local table = require 'ext.table'
 local os = require 'ext.os'
-
 local includeList = require 'include-list'
 
 local req = ...
+
 if not req then error("`make.lua all` for all, or `make.lua <sourceIncludeFile.h>`") end
 if req ~= 'all' then
 	-- TODO seems using <> or "" now is essential for excluding recursive require's
@@ -23,13 +23,11 @@ if req ~= 'all' then
 	end
 end
 
-local outdirbase = path'results'	-- outdir without ffi/
-local outdir = outdirbase/'ffi'
+local outdirbase = path'results'
 for _,inc in ipairs(includeList) do
 	if not inc.dontGen then
-		local outpath = outdir/inc.out
-		local dir, outfn = outpath:getdir()
-		dir:mkdir(true)
+		local outpath = outdirbase/'ffi'/inc.out
+		outpath:getdir():mkdir(true)
 
 		if inc.forcecode then
 			-- just write it , proly a split between dif os versions
