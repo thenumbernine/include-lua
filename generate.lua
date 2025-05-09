@@ -3,12 +3,13 @@ local ffi = require 'ffi'		-- used for OS check and used for verifying that the 
 local table = require 'ext.table'
 local string = require 'ext.string'
 local assert = require 'ext.assert'
+local path = require 'ext.path'
 local io = require 'ext.io'
 local os = require 'ext.os'
 local tolua = require 'ext.tolua'
 
 
-local includeList = require 'include-list'
+local includeList = table(require 'include-list')
 
 
 local Preproc = require 'preproc'
@@ -165,7 +166,7 @@ function ThisPreproc:__call(...)
 	local currentfile
 	local currentluainc
 	local newlines = table()
---newlines:insert('/* self.luaBindingIncFiles: '..tolua(self.luaBindingIncFiles)..' */')
+--DEBUG(require-replace):newlines:insert('/* self.luaBindingIncFiles: '..tolua(self.luaBindingIncFiles)..' */')
 	for i,l in ipairs(lines) do
 		-- skip the first BEGIN, cuz this is the BEGIN for the include we are currently generating.
 		-- dont wanna swap out the whole thing
@@ -174,14 +175,14 @@ function ThisPreproc:__call(...)
 			if beginfile then
 				local search = self.mapFromIncludeToSearchFile[beginfile]
 				if search then
---newlines:insert('/* search: '..tostring(search)..' */')
---newlines:insert('/* ... checking self.luaBindingIncFiles: '..tolua(self.luaBindingIncFiles)..' */')
+--DEBUG(require-replace):newlines:insert('/* search: '..tostring(search)..' */')
+--DEBUG(require-replace):newlines:insert('/* ... checking self.luaBindingIncFiles: '..tolua(self.luaBindingIncFiles)..' */')
 					-- if beginfile is one of the manually-included files then don't replace it here.
 					if self.luaBindingIncFiles:find(nil, function(o)
 						-- TODO if one is user then dont search for the other in sys, idk which way tho
 						return search:sub(2,-2) == o:sub(2,-2)
 					end) then
---newlines:insert('/* ... is already in the generate.lua args */')
+--DEBUG(require-replace):newlines:insert('/* ... is already in the generate.lua args */')
 					else
 						-- if it's found in includeList then ...
 						local _, replinc = includeList:find(nil, function(o)
@@ -193,9 +194,9 @@ function ThisPreproc:__call(...)
 							end
 						end)
 						if not replinc then
---newlines:insert("/* didn't find */")
+--DEBUG(require-replace):newlines:insert("/* didn't find */")
 						else
---newlines:insert('/*  ... found: '..replinc.inc..' */')
+--DEBUG(require-replace):newlines:insert('/*  ... found: '..replinc.inc..' */')
 							currentfile = beginfile
 							currentluainc = replinc.out:match'^(.*)%.lua$':gsub('/', '.')
 						end
@@ -480,9 +481,8 @@ return function(inc)
 	-- before reading inc's properties, make sure we get the pkgconfig ones
 	inc:setupPkgConfig()
 
-	-- how to tell sys or not?
 	for _,f in ipairs(inc.includedirs or {}) do
-		preproc:addIncludeDir(f)	-- if 'f' is a path ... tostring() or escape()? which does proper Windows slashes?
+		preproc:addIncludeDir(f, true)	-- if 'f' is a path ... tostring() or escape()? which does proper Windows slashes?
 	end
 
 	for _,kv in ipairs(inc.macros or {}) do
@@ -550,8 +550,8 @@ return function(inc)
 		for _,suffix in ipairs(cNumberSuffixes) do
 			vnumstr = v:lower():match('(.*)'..suffix..'$')
 			if vnumstr then
-				--v = tostring((assert(tonumber(vnumstr))))
-				v = vnumstr	-- use as is but truncated
+				--v = tostring((assert(tonumber(vnumstr))))	-- use it as is
+				v = vnumstr	-- use as is but truncated ... this messes up int64's outside the range of double ...
 			end
 		end
 
@@ -567,6 +567,8 @@ return function(inc)
 		code,
 		"]]"
 	}:concat'\n'..'\n'
+
+path'~before-final.h':write(code)
 
 	-- if there's a final-pass on the code then do it
 	-- TODO inc.final() before lua code wrapping?

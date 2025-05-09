@@ -1420,28 +1420,19 @@ includeList:append(table{
 
 	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
 
-	{inc='<machine/endian.h>', out='OSX/c/machine/endian.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
+	{inc='<machine/endian.h>', out='OSX/c/machine/endian.lua'},
 
 	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/c/sys/_pthread/_pthread_types.lua'},
 
 	-- depends on <sys/_pthread/_pthread_types.h> <machine/_types.h>
-	{inc='<_types.h>', out='OSX/c/_types.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
+	{inc='<_types.h>', out='OSX/c/_types.lua'},
 
 	{inc='<sys/_types/_seek_set.h>', out='OSX/c/sys/_types/_seek_set.lua'},
 
 	{inc='<sys/_types/_timespec.h>', out='OSX/c/sys/_types/_timespec.lua'},
 
 	-- depends on <machine/_types.h>
-	{inc='<sys/_types/_timeval.h>', out='OSX/c/sys/_types/_timeval.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
+	{inc='<sys/_types/_timeval.h>', out='OSX/c/sys/_types/_timeval.lua'},
 
 	{inc='<sys/_types/_fd_def.h>', out='OSX/c/sys/_types/_fd_def.lua'},
 
@@ -1471,7 +1462,6 @@ includeList:append(table{
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<sys/ioctl.h>', out='OSX/c/sys/ioctl.lua', final=function(code)
 		code = fixasm(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
 		return code
 	end},
 
@@ -1481,7 +1471,6 @@ includeList:append(table{
 		out='OSX/c/sys/select.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			return code
 		end,
 	},
@@ -1497,10 +1486,7 @@ includeList:append(table{
 	},
 
 	-- depends on <_types.h> <sys/_types/_fd_def.h> <machine/_types.h> <machine/endian.h>
-	{inc='<sys/types.h>', out='OSX/c/sys/types.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
+	{inc='<sys/types.h>', out='OSX/c/sys/types.lua'},
 
 	-- depends on <_types.h> <machine/_types.h>
 	{
@@ -1508,7 +1494,6 @@ includeList:append(table{
 		out='OSX/c/string.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			return code
 		end,
 	},
@@ -1520,7 +1505,6 @@ includeList:append(table{
 		final = function(code)
 			code = fixasm(code)
 			code = fixEnumsAndDefineMacrosInterleaved(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			return code
 		end,
 	},
@@ -1566,7 +1550,6 @@ return setmetatable({
 		out = 'OSX/c/sys/stat.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			code = code .. [[
 local lib = ffi.C
 local statlib = setmetatable({
@@ -1587,32 +1570,12 @@ return statlib
 	},
 
 	-- depends on <_types.h> <machine/_types.h>
-	{inc='<stdint.h>', out='OSX/c/stdint.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
+	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
 
 	-- depends on <machine/_types.h>
 	{
 		inc = '<sys/signal.h>',
 		out='OSX/c/sys/signal.lua',
-		final = function(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
-			-- [[ #defines within structs ...
-			for _,k in ipairs{
-				'FP_PREC_24B = 0',
-				'FP_PREC_53B = 2',
-				'FP_PREC_64B = 3',
-				'FP_RND_NEAR = 0',
-				'FP_RND_DOWN = 1',
-				'FP_RND_UP = 2',
-				'FP_CHOP = 3',
-			} do
-				code = removeEnum(code, k)
-			end
-			--]]
-			return code
-		end,
 	},
 
 	-- depends on <sys/signal.h>, <_types.h> <machine/_types.h> <machine/endian.h>
@@ -1621,7 +1584,6 @@ return statlib
 		out = 'OSX/c/stdlib.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 
 			-- how come __BLOCKS__ is defined ...
 			-- TODO disable __BLOCKS__ to omit these:
@@ -1637,7 +1599,30 @@ return statlib
 
 	-- depends on <sys/syslimits.h>
 	{inc='<limits.h>', out='OSX/c/limits.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
+		-- [[ these ones are converting int64->double and failing
+		code = removeEnum(code, string.patescape"LONG_MAX = 9.2233720368548e+18")
+		code = removeEnum(code, string.patescape"LONG_MIN = -9.2233720368548e+18")
+		code = removeEnum(code, string.patescape"ULONG_MAX = 1.844674407371e+19")
+		code = removeEnum(code, string.patescape"LLONG_MAX = 9.2233720368548e+18")
+		code = removeEnum(code, string.patescape"LLONG_MIN = -9.2233720368548e+18")
+		code = removeEnum(code, string.patescape"LONG_LONG_MAX = 9.2233720368548e+18")
+		code = removeEnum(code, string.patescape"LONG_LONG_MIN = -9.2233720368548e+18")
+		--]]
+		code = table{
+			code,
+			[[
+-- add in values that can't be ffi.cdef enum'd
+local wrapper = setmetatable({}, {__index=ffi.C})
+wrapper.LONG_MAX = 0x7FFFFFFFFFFFFFFFLL
+wrapper.LONG_MIN = -wrapper.LONG_MAX - 1LL
+wrapper.ULONG_MAX = 0xFFFFFFFFFFFFFFFFULL
+wrapper.LLONG_MAX = wrapper.LONG_MAX
+wrapper.LONG_LONG_MIN = wrapper.LONG_MIN
+wrapper.LONG_LONG_MAX = wrapper.LONG_MAX
+wrapper.LLONG_MIN = wrapper.LONG_MIN
+return wrapper
+]],
+		}:concat'\n'
 		return code
 	end},
 
@@ -1649,7 +1634,6 @@ return statlib
 		out = 'OSX/c/unistd.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			-- for interchangeability with Windows ...
 			code = code .. [[
 return ffi.C
@@ -1676,30 +1660,25 @@ return ffi.C
 	},
 
 	-- depends on <machine/_types.h>
-	{inc='<inttypes.h>', out='OSX/c/inttypes.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
+	{inc='<inttypes.h>', out='OSX/c/inttypes.lua'},
 
 	{inc='<fcntl.h>', out='OSX/c/fcntl.lua', final=function(code)
 		code = fixasm(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
 		return code
 	end},
 
 	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua', final=function(code)
 		code = fixasm(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
 		return code
 	end},
 
+	-- needs <sys/_pthread/_pthread_types.h>
 	-- depends on <machine/_types.h> <sys/_types/_seek_set.h>
 	{
 		inc = '<stdio.h>',
 		out = 'OSX/c/stdio.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
 			code = code .. [[
 -- special case since in the browser app where I'm capturing fopen for remote requests and caching
 -- feel free to not use the returend table and just use ffi.C for faster access
@@ -1718,10 +1697,6 @@ return setmetatable({}, {
 		out = 'OSX/c/wchar.lua',
 		final = function(code)
 			code = fixasm(code)
-			code = removeEnum(code, 'USE_CLANG_%w* = 0')
-			-- these are duplicated in <wchar.h> and in <stdint.h>
-			code = commentOutLine(code, 'enum { WCHAR_MIN = -2147483648 };')
-			code = commentOutLine(code, 'enum { WCHAR_MAX = 2147483647 };')
 			return code
 		end,
 	},
@@ -1734,6 +1709,44 @@ return setmetatable({}, {
 			code = string.split(code, '\n'):filter(function(l)
 				return not l:find'_Float16'
 			end):concat'\n'
+			-- [[ remove defines of floats
+			code = removeEnum(code, string.patescape'M_E = 2.71828182845904523536028747135266250')
+			code = removeEnum(code, string.patescape'M_LOG2E = 1.44269504088896340735992468100189214')
+			code = removeEnum(code, string.patescape'M_LOG10E = 0.434294481903251827651128918916605082')
+			code = removeEnum(code, string.patescape'M_LN2 = 0.693147180559945309417232121458176568')
+			code = removeEnum(code, string.patescape'M_LN10 = 2.30258509299404568401799145468436421')
+			code = removeEnum(code, string.patescape'M_PI = 3.14159265358979323846264338327950288')
+			code = removeEnum(code, string.patescape'M_PI_2 = 1.57079632679489661923132169163975144')
+			code = removeEnum(code, string.patescape'M_PI_4 = 0.785398163397448309615660845819875721')
+			code = removeEnum(code, string.patescape'M_1_PI = 0.318309886183790671537767526745028724')
+			code = removeEnum(code, string.patescape'M_2_PI = 0.636619772367581343075535053490057448')
+			code = removeEnum(code, string.patescape'M_2_SQRTPI = 1.12837916709551257389615890312154517')
+			code = removeEnum(code, string.patescape'M_SQRT2 = 1.41421356237309504880168872420969808')
+			code = removeEnum(code, string.patescape'M_SQRT1_2 = 0.707106781186547524400844362104849039')
+			code = removeEnum(code, string.patescape'X_TLOSS = 1.41484755040568800000e+16')
+			code = table{
+				code,
+				[[
+-- add in values that can't be ffi.cdef enum'd
+local wrapper = setmetatable({}, {__index=ffi.C})
+wrapper.M_E = 2.71828182845904523536028747135266250
+wrapper.M_LOG2E = 1.44269504088896340735992468100189214
+wrapper.M_LOG10E = 0.434294481903251827651128918916605082
+wrapper.M_LN2 = 0.693147180559945309417232121458176568
+wrapper.M_LN10 = 2.30258509299404568401799145468436421
+wrapper.M_PI = 3.14159265358979323846264338327950288
+wrapper.M_PI_2 = 1.57079632679489661923132169163975144
+wrapper.M_PI_4 = 0.785398163397448309615660845819875721
+wrapper.M_1_PI = 0.318309886183790671537767526745028724
+wrapper.M_2_PI = 0.636619772367581343075535053490057448
+wrapper.M_2_SQRTPI = 1.12837916709551257389615890312154517
+wrapper.M_SQRT2 = 1.41421356237309504880168872420969808
+wrapper.M_SQRT1_2 = 0.707106781186547524400844362104849039
+wrapper.X_TLOSS = 1.41484755040568800000e+16
+return wrapper
+]],
+			}:concat'\n'
+			--]]
 			return code
 		end,
 	},
@@ -1788,17 +1801,7 @@ return setmetatable({}, {
 		out = 'OSX/c/complex.lua',
 		enumGenUnderscoreMacros = true,
 		final = function(code)
-			for _,k in ipairs{
-				'__BEGIN_DECLS = 1',
-				'__END_DECLS = 1',
-				'__const = 0',
-				'__signed = 0',
-				'__volatile = 0',
-				'__restrict = 0',
-				'complex = 0',
-			} do
-				code = commentOutLine(code, 'enum { '..k..' };')
-			end
+			code = commentOutLine(code, 'enum { complex = 0 };')
 			return code
 		end,
 	},
@@ -1991,13 +1994,21 @@ return require 'ffi.load' 'ffi'
 
 	-- depends: stdbool.h
 	-- apt install libgif-dev
-	{inc='<gif_lib.h>', out='gif.lua', final=function(code)
-		code = [[
+	-- brew install giflib
+	{
+		inc = '<gif_lib.h>',
+		out = 'gif.lua',
+		includedirs = ffi.osx == 'OSX' and {
+			'/usr/local/opt/giflib/include/',
+		} or nil,
+		final = function(code)
+			code = [[
 ]] .. code .. [[
 return require 'ffi.load' 'gif'
 ]]
-		return code
-	end},
+			return code
+		end,
+	},
 
 	{
 		inc='<fitsio.h>',
@@ -2096,8 +2107,15 @@ return require 'ffi.load' 'gif'
 		out = 'netcdf.lua',
 		pkgconfig = 'netcdf',
 		final = function(code)
+			code = removeEnum(code, string.patescape"NC_MAX_DOUBLE = 1.7976931348623157e+308")
+			code = removeEnum(code, string.patescape"NC_MAX_INT64 = 9.2233720368548e+18")
+			code = removeEnum(code, string.patescape"NC_MIN_INT64 = -9.2233720368548e+18")
 			code = code .. [[
-return require 'ffi.load' 'netcdf'
+local wrapper = setmetatable({}, {__index = require 'ffi.load' 'netcdf'})
+wrapper.NC_MAX_DOUBLE = 1.7976931348623157e+308
+wrapper.NC_MAX_INT64 = 9.2233720368548e+18
+wrapper.NC_MIN_INT64 = -9.2233720368548e+18
+return wrapper
 ]]
 			return code
 		end,
@@ -2175,6 +2193,9 @@ return require 'ffi.load' 'cimgui_sdl'
 	{
 		inc = '<CL/opencl.h>',
 		out = 'OpenCL.lua',
+		includedirs = ffi.os == 'OSX' and {
+			'/usr/local/opt/opencl-headers/include',	-- brew instal opencl-headers
+		} or nil,
 		final = function(code)
 			code = commentOutLine(code, 'warning: Need to implement some method to align data here')
 

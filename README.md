@@ -13,12 +13,21 @@ Produces content for my
 
 ## `make.lua` ##
 
-This generates a LuaJIT loader file for a requested C include file. e.g.
+To generate all binding files for your current OS:
+```
+./make.lua all
+```
+
+To generate all starting at a specific point:
+```
+./make.lua 'start=<jpeglib.h>'
+```
+
+To generate a single binding file:
 ```
 ./make.lua '<jpeglib.h>'
 ```
 
-It accepts either a specific header listed in the `include-list`, or `al` will generate all in the list in one go.
 It then calls into `generate.lua` to produce the LuaJIT binding file.
 The results are stored in `results/ffi/*`.
 
