@@ -63,6 +63,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 			vnumstr = v:lower():match('(.*)'..suffix..'$')
 			-- TODO optional 's for digit separtors
 			vnum = tonumber(vnumstr)
+--[[ this fills up the ffi cdef ...
 			if vnum then
 -- ... extra check to verify that this is in fact an enum?
 				LASTENUMCHECK = (LASTENUMCHECK or 0) + 1
@@ -73,6 +74,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 				end
 				break
 			end
+--]]
 		end
 
 		-- if the value string is a number define

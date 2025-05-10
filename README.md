@@ -111,3 +111,20 @@ wrapper = require 'ffi.libwrapper'{
 
 return wrapper
 ```
+
+# TODO
+
+- Right now the `include-list.lua` is split up into ...
+	- Windows-system
+	- Linux-system
+	- OSX-system
+	- 3rd party libs
+Those OS-specific files themselves are split into:
+	1) common internal include files whose cdefs shouldn't be duplicated.
+	2) the main API include files that programmers use, and that themselves use those internal common files.
+Right now previously generated files are searched for within new generated files, and the blocks are swapped out with `]] require 'ffi.req' ${include} ffi.cdef[[`, so that the Lua `require()` code can behave just like the C `#include` code.
+The maintaining of the internal include files is tedious and always changing per SDK version change.
+However this could be automatic:
+	- Per each include file, search its include files, and search all previous binding generated include files (You'd have to store the preproc-output of each file, or at least keep track of the BEGIN/END comments that at the moment libwrapper-codegen is throwing out).
+	- If a duplicate is found then flag it for necessary generation ... insert it into some "needed internal system headers file ...
+		- If a previous internal header in that file is not found then flag it and report it that it can be removed.
