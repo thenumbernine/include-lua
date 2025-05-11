@@ -630,15 +630,29 @@ local function preprocessWithCompiler(inc)
 		end
 	end
 
+	local function reportDups(newIncInfo, prevIncInfo, includePath)
+		print("!!!!! FOUND REDUNDANT INCLUDE FILE !!!!!")
+		print(newIncInfo.search..' '..includePath)
+		print('***** 1st:', newIncInfo.lua..':'..newIncInfo.line)
+		print('***** 2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
+		assert.eq(newIncInfo.search, prevIncInfo.search, "and their #include arguments don't match!")
+		print("insert this into your include-list-"..ffi.os:lower()..".lua:")
+		print('\t-- used by '.. newIncInfo.inc.inc..' '..prevIncInfo.inc.inc)
+		print("\t{inc='"..newIncInfo.search.."', out='"..ffi.os..'/'..newIncInfo.search:sub(2,-2):gsub('%.h$', '.lua').."'},")
+		error"Automatically put in a request to generate this internal #include file and then re-run everything."
+	end
+
 	-- fp = current file path (used to report errors, not for file IO)
 	-- line = same
 	-- l = current line
 	-- l2 = optional next line for testing empty lines
-	local function processIncludeBeginComment(fp, line, l, l2)
+	local function processIncludeBeginComment(pinc, fp, line, l, l2, skipOwnInc)
 		local plus, search, includePath = parseIncludeBeginComment(l, l2)
 		if not search then return end
+		if skipOwnInc and plus == '+' then return end
 		local prevIncInfo = prevIncludeInfos[includePath]
 		local newIncInfo = {
+			inc = pinc,
 			search = search,
 			lua = fp,
 			line = line,
@@ -648,23 +662,19 @@ local function preprocessWithCompiler(inc)
 			return
 		end
 		if prevIncInfo.lua == fp then
-			print('1st:', tolua(newIncInfo))
-			print('2nd:', tolua(prevIncInfo))
+			print('***** 1st:', tolua(newIncInfo))
+			print('***** 2nd:', tolua(prevIncInfo))
 			error"somehow we included the same path twice!"
 		end
-		print("found redundant include file!!!!")
-		print(search..' '..includePath)
-		print('1st:', newIncInfo.lua..':'..newIncInfo.line)
-		print('2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
-		assert.eq(search, prevIncInfo.search, "and their #include arguments don't match!")
-		error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
+		
+		reportDups(newIncInfo, prevIncInfo, includePath)
 	end
 
-	local function checkIncludeComments(fp)
+	local function checkIncludeComments(pinc, fp, skipOwnInc)
 		local data = outdir(fp):read()
 		local lines = string.split(data, '\n')
 		for i,l in ipairs(lines) do
-			processIncludeBeginComment(fp, i, l, lines[i+1])
+			processIncludeBeginComment(pinc, fp, i, l, lines[i+1], skipOwnInc)
 		end
 	end
 
@@ -679,7 +689,7 @@ local function preprocessWithCompiler(inc)
 		if not outdir(fp):exists() then
 			print('!!! '..fp.." doesn't exist - can't compare like include trees")
 		else
-			checkIncludeComments(fp)
+			checkIncludeComments(pinc, fp, false)
 		end
 	end
 
@@ -804,9 +814,9 @@ local function preprocessWithCompiler(inc)
 			elseif l:find('^#', 1) then
 				-- handle preprocessor include results
 				-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
-				local lineno, filename, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
+				local lineno, includePath, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
 
-				filename = filename:match'^"(.*)"$':gsub('\\"', '"')
+				includePath = includePath:match'^"(.*)"$':gsub('\\"', '"')
 
 				flags = string.split(string.trim(flags), ' '):mapi(function(flag)
 					if flag == '' then return end	-- for empty strings
@@ -816,34 +826,51 @@ local function preprocessWithCompiler(inc)
 					-- begin file
 					local wasSuppressed = (incstack:last() or {}).suppress
 					local top = {
-						path = filename,
+						path = includePath,
 						search = lastSearch,
 						suppress = wasSuppressed,
 					}
 					incstack:insert(top)
-					if filename == '<built-in>'
-					or filename == '<command line>'
+					if includePath == '<built-in>'
+					or includePath == '<command line>'
 					then
 						lines:remove(i)
 						i = i - 1
 					else
-						searchForPath[filename] = lastSearch
+						searchForPath[includePath] = lastSearch
 						if incstack:last().suppress then
 							lines:remove(i)
 							i = i - 1
 						else
-							lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..filename..' */'
+							lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..includePath..' */'
 						end
 
 						-- if the #include file has already been defined ...
 						-- then just insert it here
-						local incinfo = prevIncludeInfos[filename]
-						if incinfo and #incstack > 1 then	-- don't use ourselves
+						local prevIncInfo = prevIncludeInfos[includePath]
+						if prevIncInfo and #incstack > 1 then	-- don't use ourselves
 							if not wasSuppressed then
--- TODO TODO TODO this is spitting out garbage locations
+								-- prevIncInfo.filename = the duplicated tree
+								-- prevIncInfo.search = what is #include'd to generate that
+								-- ... then we have to find in all includeList for prevIncInfo.search
+								-- ... then we put its .out here
+								local previnc = select(2, includeList:find(nil, function(o) return o.inc == prevIncInfo.search end))
+								if not previnc then
+									local newIncInfo = {
+										search = lastSearch,
+										line = i,
+										lua = path(inc.out),
+										inc = inc,
+									}
+									
+									reportDups(newIncInfo, prevIncInfo, includePath)
+								end
+
 								lines:insert(i+1, "]] require 'ffi.req' '"
-									..incinfo.lua.path:match'^(.*)%.lua$':gsub('/', '.')
-									.."' ffi.cdef[[")
+									..previnc.out:match'^(.*)%.lua$':gsub('/', '.')
+									.."' ffi.cdef[["
+--..'\n...from: '..tolua(prevIncInfo)
+								)
 								i = i + 1
 							end
 							incstack:last().suppress  = true
@@ -949,7 +976,7 @@ path'~before-final.h':write(code)
 
 		-- in fact, if I'm handling this in #include handling
 		-- then this will return nothing, right?
-		checkIncludeComments(fp)
+		checkIncludeComments(inc, fp, true)
 	end
 
 	return code

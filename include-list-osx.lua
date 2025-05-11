@@ -30,18 +30,6 @@ return table{
 	-- (so maybe I could avoid this one file and just let its contents embed into sdl.lua ...)
 	{inc='<AvailabilityMacros.h>', out='OSX/c/AvailabilityMacros.lua'},
 
-	-- depends on <AvailabilityMacros.h> and <AvailabilityVersions.h>
-	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
-
-	-- used by machine/_types.h and machine/types.h
-	-- probably just for i386 processors
-	{inc='<i386/_types.h>', out='OSX/c/i386/_types.lua', final=function(code)
-		code = removeEnum(code, 'USE_CLANG_%w* = 0')
-		return code
-	end},
-
-	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
-
 	{inc='<machine/endian.h>', out='OSX/c/machine/endian.lua'},
 
 	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/c/sys/_pthread/_pthread_types.lua'},
@@ -86,7 +74,26 @@ return table{
 
 --]====] -- END INTERNALLY REQUESTED
 
+	-- used by <time.h> <string.h> 
+	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
+
+	-- used by <_types.h> <machine/types.h>
+	{inc='<i386/_types.h>', out='OSX/c/i386/_types.lua'},
+
+	-- used by <_types.h> <machine/types.h>
+	{inc='<sys/cdefs.h>', out='OSX/c/sys/cdefs.lua'},
+	
+	-- used by <_types.h> <machine/types.h>
+	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
+
+	-- used by <time.h> <string.h> 
 	{inc='<_types.h>', out='OSX/c/_types.lua'},
+
+	-- used by <time.h> <string.h> 
+	{inc='<machine/types.h>', out='OSX/c/machine/types.lua'},
+	
+	-- used by <time.h> <string.h>
+	{inc='<sys/_types/_size_t.h>', out='OSX/sys/_types/_size_t.lua'},
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
