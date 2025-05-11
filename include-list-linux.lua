@@ -1,6 +1,8 @@
 local table = require 'ext.table'
 
 return table{
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{inc='<stddef.h>', out='Linux/c/stddef.lua'},
 
 	{inc='<bits/wordsize.h>', out='Linux/c/bits/wordsize.lua'},
@@ -106,9 +108,13 @@ return table{
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: features.h stddef.h bits/libc-header-start.h
 	{inc='<string.h>', out='Linux/c/string.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: features.h stddef.h bits/types.h and too many really
 	-- this and any other file that requires stddef might have these lines which will have to be removed:
 	{
@@ -120,6 +126,8 @@ return table{
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on features.h
 	{
 		inc = '<errno.h>',
@@ -162,6 +170,7 @@ return setmetatable({
 	},
 
 	-- depends: bits/types.h etc
+	-- in list: Windows Linux OSX
 	{
 		inc = '<sys/stat.h>',
 		out = 'Linux/c/sys/stat.lua',
@@ -196,6 +205,8 @@ return statlib
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
 	-- depends: bits/types.h
 	{
 		inc = '<stdint.h>',
@@ -235,6 +246,8 @@ enum { WCHAR_MAX = 2147483647 };
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: features.h sys/types.h
 	{inc = '<stdlib.h>', out = 'Linux/c/stdlib.lua'},
 
@@ -251,6 +264,8 @@ enum { WCHAR_MAX = 2147483647 };
 		out = 'Linux/c/bits/types/FILE.lua',
 	},
 
+	-- ISO/IEC 9899:1990/Amd.1:1995
+	-- in list: Windows Linux OSX
 	-- depends on: bits/types/__mbstate_t.h
 	-- I never needed it in Linux, until I got to SDL
 	{inc = '<wchar.h>', out = 'Linux/c/wchar.lua'},
@@ -261,6 +276,8 @@ enum { WCHAR_MAX = 2147483647 };
 		out = 'Linux/c/bits/posix1_lim.lua',
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: bits/libc-header-start.h linux/limits.h bits/posix1_lim.h
 	-- with this the preproc gets a warning:
 	--  warning: redefining LLONG_MIN from -1 to -9.2233720368548e+18 (originally (-LLONG_MAX - 1LL))
@@ -269,10 +286,13 @@ enum { WCHAR_MAX = 2147483647 };
 	--  and there would be no need for manual manipulation here
 	{inc='<limits.h>', out='Linux/c/limits.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: features.h, bits/types/__sigset_t.h
 	{inc='<setjmp.h>', out='Linux/c/setjmp.lua'},
 
 	-- depends: features.h bits/types.h
+	-- in list: Windows Linux OSX
 	{
 		inc = '<unistd.h>',
 		out = 'Linux/c/unistd.lua',
@@ -337,12 +357,16 @@ return ffi.C
 		return code
 	end},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on too much
 	{inc='<stdarg.h>', out='Linux/c/stdarg.lua', final=function(code)
 		code = replace_va_list_require(code)
 		return code
 	end},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
 	-- identical in windows linux osx ...
 	{
 		inc = '<stdbool.h>',
@@ -356,14 +380,19 @@ return ffi.C
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Linux OSX
 	-- depends: features.h stdint.h
 	{inc='<inttypes.h>', out='Linux/c/inttypes.lua'},
 
-	-- [[ TODO verify these work
-	{inc = '<fcntl.h>', out = 'Linux/c/fcntl.lua'},
-	{inc = '<sys/mman.h>', out = 'Linux/c/sys/mman.lua'},
-	--]]
+	-- in list: Windows Linux OSX
+	{inc='<fcntl.h>', out='Linux/c/fcntl.lua'},
 
+	-- in list: Windows Linux OSX
+	{inc='<sys/mman.h>', out='Linux/c/sys/mman.lua'},
+
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on too much
 	-- moving to Linux-only block since now it is ...
 	-- it used to be just after stdarg.h ...
@@ -395,6 +424,8 @@ return setmetatable({}, {
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Linux OSX
 	{
 		inc = '<math.h>',
 		out = 'Linux/c/math.lua',
@@ -458,6 +489,8 @@ return setmetatable({}, {
 			return code
 	end},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Linux OSX
 	{
 		inc = '<signal.h>',
 		out = 'Linux/c/signal.lua',
@@ -484,11 +517,11 @@ return setmetatable({}, {
 		return code
 	end},
 
+	{inc='<sys/sysinfo.h>', out='Linux/c/sys/sysinfo.lua'},
 
-	-- TODO
-	-- uses a vararg macro which I don't support yet
---	{inc='<sys/sysinfo.h>', out='Linux/c/sys/sysinfo.lua'},
-
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
+	-- used by CBLAS
 	-- depends on bits/libc-header-start
 	-- '<identifier>' expected near '_Complex' at line 2
 	-- has to do with enum/define'ing the builtin word _Complex
@@ -531,27 +564,8 @@ return setmetatable({}, {
 		end,
 	},
 
-	-- apt install libarchive-dev
-	{
-		inc='<archive.h>',
-		moreincs = {
-			'<archive_entry.h>',
-		},
-		out='archive.lua',
-		final = function(code)
-			code = code .. [[
-return require 'ffi.load' 'archive'
-]]
-			return code
-		end,
-	},
-
-	-- used by GL, GLES1, GLES2 ...
-	{
-		inc = '<KHR/khrplatform.h>',
-		out = 'Linux/KHR/khrplatform.lua',
-	},
-
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Linux
 	-- included by SDL/SDL_stdinc.h
 	-- I'm surprised it's not used more often, has stuff like 'tolower'
 	{

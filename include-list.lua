@@ -359,6 +359,7 @@ OS-specific bindings
 each should have:
 1) internal includes that vary per OS
 2) external includes that make up the API of requests for `require 'ffi.req' 'c.whatever'` <=> `#include <whatever.h>`
+https://stackoverflow.com/a/2029106/2714073
 --]]
 includeList:append(require 'include.include-list-windows')
 includeList:append(require 'include.include-list-linux')
@@ -367,6 +368,32 @@ includeList:append(require 'include.include-list-osx')
 includeList:append(table{
 
 -- these come from external libraries (so I don't put them in the c/ subfolder)
+
+	-- used by GL, GLES1, GLES2 ...
+	{
+		inc = ffi.os ~= 'OSX'
+			and '<KHR/khrplatform.h>'
+			-- OSX is installed as `brew install mesa`
+			-- which I forget why but that's user include path at the moemnt
+			-- TODO fix that
+			or '"KHR/khrplatform.h"',
+		out = ffi.os..'/KHR/khrplatform.lua',
+	},
+
+	-- apt install libarchive-dev
+	{
+		inc='<archive.h>',
+		moreincs = {
+			'<archive_entry.h>',
+		},
+		out='archive.lua',
+		final = function(code)
+			code = code .. [[
+return require 'ffi.load' 'archive'
+]]
+			return code
+		end,
+	},
 
 	{
 		-- ok I either need to have my macros smart-detect when their value is only used for types

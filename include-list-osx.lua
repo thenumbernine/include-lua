@@ -51,6 +51,8 @@ return table{
 	-- TODO might end up adding sys/_types.h ...
 	-- it depends on machine/_types.h
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{inc='<stddef.h>', out='OSX/c/stddef.lua'},
 
 	-- depends on <_types.h> <machine/_types.h>
@@ -65,9 +67,13 @@ return table{
 	-- depends on <_types.h> <sys/_types/_fd_def.h> <machine/_types.h> <machine/endian.h>
 	{inc='<sys/types.h>', out='OSX/c/sys/types.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<string.h>', out='OSX/c/string.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
 	{
 		inc = '<time.h>',
@@ -78,6 +84,8 @@ return table{
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on <sys/_types/_errno_t.h>
 	{
 		inc = '<errno.h>',
@@ -114,6 +122,7 @@ return setmetatable({
 	},
 
 	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
+	-- in list: Windows Linux OSX
 	{
 		inc = '<sys/stat.h>',
 		out = 'OSX/c/sys/stat.lua',
@@ -137,6 +146,8 @@ return statlib
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
 
@@ -146,6 +157,8 @@ return statlib
 		out='OSX/c/sys/signal.lua',
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on <sys/signal.h>, <_types.h> <machine/_types.h> <machine/endian.h>
 	{
 		inc = '<stdlib.h>',
@@ -161,8 +174,11 @@ return statlib
 		end,
 	},
 
+	-- in list: Linux (internal include file)
 	{inc='<sys/syslimits.h>', out='OSX/c/sys/syslimits.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on <sys/syslimits.h>
 	{inc='<limits.h>', out='OSX/c/limits.lua', final=function(code)
 		-- [[ these ones are converting int64->double and failing
@@ -192,9 +208,12 @@ return wrapper
 		return code
 	end},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{inc='<setjmp.h>', out='OSX/c/setjmp.lua'},
 
 	-- depends: <features.h> <machine/_types.h> <sys/_types/_seek_set.h>
+	-- in list: Windows Linux OSX
 	{
 		inc = '<unistd.h>',
 		out = 'OSX/c/unistd.lua',
@@ -209,8 +228,12 @@ return ffi.C
 
 	{inc='<sched.h>', out='OSX/c/sched.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{inc='<stdarg.h>', out='OSX/c/stdarg.lua'},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
 	-- identical in windows linux osx ...
 	{
 		inc = '<stdbool.h>',
@@ -224,13 +247,19 @@ return ffi.C
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Linux OSX
 	-- depends on <machine/_types.h>
 	{inc='<inttypes.h>', out='OSX/c/inttypes.lua'},
 
+	-- in list: Windows Linux OSX
 	{inc='<fcntl.h>', out='OSX/c/fcntl.lua'},
 
+	-- in list: Windows Linux OSX
 	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- needs <sys/_pthread/_pthread_types.h>
 	-- depends on <machine/_types.h> <sys/_types/_seek_set.h>
 	{
@@ -249,9 +278,13 @@ return setmetatable({}, {
 		end,
 	},
 
+	-- ISO/IEC 9899:1990/Amd.1:1995
+	-- in list: Windows Linux OSX
 	-- depends on <stdio.h> <machine/_types.h>
 	{inc='<wchar.h>', out='OSX/c/wchar.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Linux OSX
 	{
 		inc = '<math.h>',
 		out = 'OSX/c/math.lua',
@@ -316,6 +349,8 @@ return wrapper
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Linux OSX
 	-- depends on <_types.h> <sys/signal.h>
 	{
 		inc = '<signal.h>',
@@ -342,6 +377,9 @@ return wrapper
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
+	-- used by CBLAS
 	{
 		inc = '<complex.h>',
 		out = 'OSX/c/complex.lua',
@@ -352,7 +390,6 @@ return wrapper
 		end,
 	},
 
-	--[[ TODO vararg problem
 	{
 		inc = '<pthread.h>',
 		out = 'OSX/c/pthread.lua',
@@ -360,13 +397,6 @@ return wrapper
 			code = fixEnumsAndDefineMacrosInterleaved(code)
 			return code
 		end,
-	},
-	--]]
-
-	-- used by GL, GLES1, GLES2 ...
-	{
-		inc = '"KHR/khrplatform.h"',
-		out = 'OSX/KHR/khrplatform.lua',
 	},
 }:mapi(function(inc)
 	inc.os = 'OSX'

@@ -38,8 +38,12 @@ return table{
 	{inc='<corecrt_wtime.h>', out='Windows/c/corecrt_wtime.lua'},
 
 -- cross support (so an intermediate ffi.c.stddef is needed for redirecting based on OS
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{inc='<stddef.h>', out='Windows/c/stddef.lua'},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on: corecrt_wtime.h
 	{
 		inc = '<time.h>',
@@ -117,11 +121,15 @@ typedef intptr_t ssize_t;
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{
 		inc = '<errno.h>',
 		out = 'Windows/c/errno.lua',
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends on: errno.h corecrt_wstring.h vcruntime_string.h
 	{inc = '<string.h>', out = 'Windows/c/string.lua'},
 
@@ -168,6 +176,8 @@ return setmetatable({
 		end,
 	},
 
+	-- ISO/IEC 9899:1990/Amd.1:1995
+	-- in list: Windows Linux OSX
 	-- depends on: errno.h corecrt_wio.h corecrt_wstring.h corecrt_wdirect.h corecrt_stdio_config.h corecrt_wtime.h vcruntime_string.h
 	{
 		inc = '<wchar.h>',
@@ -232,11 +242,14 @@ return setmetatable({
 		out = 'Windows/c/direct.lua',
 	},
 
-	-- [[ TODO verify these work
-	{inc = '<fcntl.h>', out = 'Windows/c/fcntl.lua'},
-	{inc = '<sys/mman.h>', out = 'Windows/c/sys/mman.lua'},
-	--]]
+	-- in list: Windows Linux OSX
+	{inc='<fcntl.h>', out='Windows/c/fcntl.lua'},
 
+	-- in list: Windows Linux OSX
+	{inc='<sys/mman.h>', out='Windows/c/sys/mman.lua'},
+
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: corecrt_stdio_config.h
 	{
 		inc = '<stdio.h>',
@@ -256,6 +269,7 @@ return setmetatable({
 	},
 
 	-- depends: sys/types.h
+	-- in list: Windows Linux OSX
 	{
 		inc = '<sys/stat.h>',
 		out = 'Windows/c/sys/stat.lua',
@@ -341,6 +355,7 @@ return setmetatable({
 	-- so let me check posix for sys/utime.h, if it doesn't exist then maybe I'll consider renaming this to utime.h instead of sys/utime.h
 	-- nope it doesn't
 	-- so instead I think I'll have ffi.c.utime and ffi.c.sys.utime point to windows' ffi.windows.c.sys.utime or linux' ffi.linux.c.utime
+	-- in list: Windows (internal include file)
 	{
 		inc = '<sys/utime.h>',
 		out = 'Windows/c/sys/utime.lua',
@@ -371,6 +386,8 @@ ffi.arch == 'x86' and {
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
 	-- unless I enable _VCRT_COMPILER_PREPROCESSOR , this file is empty
 	-- maybe it shows up elsewhere?
 	-- hmm but if I do, my preproc misses almost all the number defs
@@ -385,11 +402,15 @@ ffi.arch == 'x86' and {
 		out = 'Windows/c/stdint.lua',
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{
 		inc = '<stdarg.h>',
 		out = 'Windows/c/stdarg.lua',
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
 	-- identical in windows linux osx ...
 	{
 		inc = '<stdbool.h>',
@@ -403,21 +424,28 @@ ffi.arch == 'x86' and {
 		end,
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	{
 		inc = '<limits.h>',
 		out = 'Windows/c/limits.lua',
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- depends: corecrt_wstdlib.h limits.h
 	{
 		inc = '<stdlib.h>',
 		out = 'Windows/c/stdlib.lua',
 	},
 
+	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
 	-- needed by png.h
 	{inc='<setjmp.h>', out='Windows/c/setjmp.lua'},
 
 	-- not in windows, but I have a fake for aliasing, so meh
+	-- in list: Windows Linux OSX
 	{
 		inc = '<unistd.h>',
 		out = 'Windows/c/unistd.lua',
@@ -437,13 +465,16 @@ return setmetatable({
 ]=]
 	},
 
-	-- used by GL, GLES1, GLES2 ...
+	-- ISO/IEC 9899:1999 (C99)
+	-- in list: Windows Linux OSX
+	-- used by CBLAS
 	{
-		inc = '<KHR/khrplatform.h>',
-		out = 'Windows/KHR/khrplatform.lua',
+		inc = '<complex.h>',
+		out = 'Windows/c/complex.lua',
 	},
 
 	-- used by SDL
+	-- in list: Windows
 	{
 		inc = '<process.h>',
 		out = 'Windows/c/process.lua',
