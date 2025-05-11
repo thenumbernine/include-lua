@@ -3,6 +3,7 @@ local string = require 'ext.string'
 
 local util = require 'util'
 local safegsub = util.safegsub
+local removeEnum = util.removeEnum
 local fixEnumsAndDefineMacrosInterleaved = util.fixEnumsAndDefineMacrosInterleaved
 
 local function removeAttrAvailability(code)
@@ -86,6 +87,9 @@ return table{
 	-- used by <_types.h> <machine/types.h>
 	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
 
+	-- used by <sys/signal.h> <_types.h>
+	{inc='<sys/_types.h>', out='OSX/sys/_types.lua'},
+
 	-- used by <time.h> <string.h> 
 	{inc='<_types.h>', out='OSX/c/_types.lua'},
 
@@ -94,6 +98,18 @@ return table{
 	
 	-- used by <time.h> <string.h>
 	{inc='<sys/_types/_size_t.h>', out='OSX/sys/_types/_size_t.lua'},
+
+	-- used by <errno.h> <string.h>
+	{inc='<sys/_types/_errno_t.h>', out='OSX/sys/_types/_errno_t.lua'},
+
+	-- used by <stdio.h> <string.h>
+	{inc='<sys/_types/_ssize_t.h>', out='OSX/sys/_types/_ssize_t.lua'},
+
+	-- used by <stdlib.h> <sys/signal.h>
+	{inc='<sys/_types/_pid_t.h>', out='OSX/sys/_types/_pid_t.lua'},
+
+	-- used by <signal.h> <stdlib.h>
+	{inc='<sys/signal.h>', out='OSX/sys/signal.lua'},
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
@@ -142,9 +158,6 @@ return setmetatable({
 	{
 		inc = '<stdlib.h>',
 		out = 'OSX/c/stdlib.lua',
-		macros = {
-			"_Nonnull=",	-- somehow the builtin define missed this one ...
-		},
 		final = function(code)
 			code = removeAttrAvailability(code)
 			return code
@@ -154,7 +167,8 @@ return setmetatable({
 	-- in list: Windows Linux OSX
 	-- depends on <sys/syslimits.h>
 	{inc='<limits.h>', out='OSX/c/limits.lua', final=function(code)
-		-- [[ these ones are converting int64->double and failing
+		--[[ these ones are converting int64->double and failing
+		-- but i switched preprocessor methods to builtin gcc and now it's just not substituting at all ...
 		code = removeEnum(code, string.patescape"LONG_MAX = 9.2233720368548e+18")
 		code = removeEnum(code, string.patescape"LONG_MIN = -9.2233720368548e+18")
 		code = removeEnum(code, string.patescape"ULONG_MAX = 1.844674407371e+19")

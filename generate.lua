@@ -636,10 +636,21 @@ local function preprocessWithCompiler(inc)
 		print('***** 1st:', newIncInfo.lua..':'..newIncInfo.line)
 		print('***** 2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
 		assert.eq(newIncInfo.search, prevIncInfo.search, "and their #include arguments don't match!")
-		print("insert this into your include-list-"..ffi.os:lower()..".lua:")
+		print("Insert this into your include-list-"..ffi.os:lower()..".lua:")
+		print()
 		print('\t-- used by '.. newIncInfo.inc.inc..' '..prevIncInfo.inc.inc)
 		print("\t{inc='"..newIncInfo.search.."', out='"..ffi.os..'/'..newIncInfo.search:sub(2,-2):gsub('%.h$', '.lua').."'},")
-		error"Automatically put in a request to generate this internal #include file and then re-run everything."
+		print()
+		print"TODO Automatically put in a request to generate this internal #include file and then re-run everything."
+--[[
+TODO last step for full automation ...
+run the full list every time,
+then upon encounterin this error,
+insert the lines above into a table auto-serialized as 'include-list-osx-internal.lua'
+make sure to insert it as high as possible but beneath both dependencies
+then re-run it
+--]]
+os.exit(1)
 	end
 
 	-- fp = current file path (used to report errors, not for file IO)
@@ -666,7 +677,7 @@ local function preprocessWithCompiler(inc)
 			print('***** 2nd:', tolua(prevIncInfo))
 			error"somehow we included the same path twice!"
 		end
-		
+
 		reportDups(newIncInfo, prevIncInfo, includePath)
 	end
 
@@ -735,10 +746,16 @@ local function preprocessWithCompiler(inc)
 			'-E',	-- do the preprocessor output
 			-- * I was also adding -I $HOME/include .. bad idea?
 			'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
-
-			-- clang-specific ?
-			'-fno-blocks',	-- disable __BLOCKS__ and those stupid ^ pointers
 		},
+
+		({
+			OSX = {
+				'-fno-blocks',	-- disable __BLOCKS__ and those stupid ^ pointers
+				"-D_Nonnull=",	-- somehow the builtin define missed this one ...
+				"-D_Nullable=",	-- this and _Nonnull, should I collect them and add them to all osx clang runs?
+			},
+		})[ffi.os],
+
 		-- * add `pkg-config ${name} --cflags` if it's there
 		inc.pkgconfig and {(io.readproc'pkg-config --cflags '..inc.pkgconfig)} or nil,
 		-- * add `inc.includedirs`
@@ -862,7 +879,7 @@ local function preprocessWithCompiler(inc)
 										lua = path(inc.out),
 										inc = inc,
 									}
-									
+
 									reportDups(newIncInfo, prevIncInfo, includePath)
 								end
 
