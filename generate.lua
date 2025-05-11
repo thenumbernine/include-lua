@@ -594,7 +594,7 @@ local function preprocessWithCompiler(inc)
 
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
-	
+
 	-- 1) get builtin macros
 	local builtinMacroLines = io.readproc'gcc -dM -E - < /dev/null 2>&1'
 
@@ -608,7 +608,7 @@ local function preprocessWithCompiler(inc)
 	local cmd = table()
 	:append(
 		{
-			"echo '"	-- echo is handed to system wrapped in 's 
+			"echo '"	-- echo is handed to system wrapped in 's
 				..table():append(inc.silentincs, {inc.inc}, inc.moreincs)
 				:mapi(function(inc)
 					return '#include '..inc..'\\n'
@@ -621,7 +621,7 @@ local function preprocessWithCompiler(inc)
 			'-E',	-- do the preprocessor output
 			-- * I was also adding -I $HOME/include .. bad idea?
 			'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
-		},		
+		},
 		-- * add `pkg-config ${name} --cflags` if it's there
 		inc.pkgconfig and {(io.readproc'pkg-config --cflags '..inc.pkgconfig)} or nil,
 		-- * add `inc.includedirs`
@@ -631,7 +631,7 @@ local function preprocessWithCompiler(inc)
 		{'- > '..tmpfn:escape()}
 	)
 	:concat' '
-	
+
 	assert(os.exec(cmd))
 	local code = assert(tmpfn:read())
 	local lines = string.split(string.trim(code), '\n')
@@ -649,7 +649,7 @@ local function preprocessWithCompiler(inc)
 				i = i - 1
 			elseif l:find('^#define', 1) then
 				local top = incstack:last()
-				if top == '<built-in>' 
+				if top == '<built-in>'
 				or top == '<command line>'
 				-- TODO
 				-- or not table{inc.inc}:append(inc.moreincs, inc.macroincs):find(top's original #include name ... how to reverse-search that ...)
@@ -658,6 +658,11 @@ local function preprocessWithCompiler(inc)
 					-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
 				else
 					local k,v = l:match'^#define%s+([_%a][_%w]*)%s*(.-)$'
+					for j=#macrosInOrder,1,-1 do
+						if next(macrosInOrder[j]) == k then
+							macrosInOrder:remove(j)
+						end
+					end
 					macros[k] = v
 					macrosInOrder:insert{[k] = v}
 				end
@@ -677,8 +682,8 @@ local function preprocessWithCompiler(inc)
 				-- handle preprocessor include results
 				-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
 				local lineno, filename, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
-				
-				filename = filename:sub(2,-2):gsub('\\"', '"')
+
+				filename = filename:match'^"(.*)"$':gsub('\\"', '"')
 
 				flags = string.split(string.trim(flags), ' '):mapi(function(flag)
 					if flag == '' then return end	-- for empty strings
@@ -687,7 +692,9 @@ local function preprocessWithCompiler(inc)
 				if flags[1] then
 					-- begin file
 					incstack:insert(filename)
-					if filename == '<built-in>' and filename == '<command-line' then
+					if filename == '<built-in>'
+					or filename == '<command line>'
+					then
 						lines:remove(i)
 						i = i - 1
 					else
@@ -695,11 +702,14 @@ local function preprocessWithCompiler(inc)
 					end
 				elseif flags[2] then
 					-- returning *to* a file (so the last file on the stack is now closed)
-					if filename == '<built-in>' and filename == '<command-line' then
+					local top = incstack:last()
+					if top == '<built-in>'
+					or top == '<command line>'
+					then
 						lines:remove(i)
 						i = i - 1
 					else
-						lines[i] = '/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */'
+						lines[i] = '/* '..('+'):rep(#incstack)..' END '..top..' */'
 					end
 					incstack:remove()
 				else
@@ -714,21 +724,21 @@ local function preprocessWithCompiler(inc)
 --		assert.len(incstack, 1)
 --		lines:insert('/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */')
 	end
-	
+
 	-- [[ append define's
 	for _,kv in ipairs(macrosInOrder) do
 		local k,origv = next(kv)
 		local v
-		if origv == '' then 
+		if origv == '' then
 			v = '1'
-		else	
+		else
 			vnumstr = tonumber(v)
 			if vnumstr then
 				v = origv
 			else
 				for _,suffix in ipairs(cNumberSuffixes) do
 					vnumstr = origv:lower():match('(.*)'..suffix..'$')
-					if vnumstr 
+					if vnumstr
 					and tonumber(vnumstr)
 					then
 						--v = tostring((assert(tonumber(vnumstr))))	-- use it as is
@@ -749,7 +759,7 @@ local function preprocessWithCompiler(inc)
 
 	-- TODO
 	-- 4) run again, this time collecting macros, subtract out builtin, and use the rest as macros for this file.
-	--		NOTICE that means we will get in the .h file any macros defined by its included files.  
+	--		NOTICE that means we will get in the .h file any macros defined by its included files.
 	-- 		With my preprocessor I was able to strip these out based on where they were defined.  can GCC give me this info?
 	-- * output the macros as `enum { k = v };`
 
