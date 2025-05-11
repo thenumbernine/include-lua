@@ -649,7 +649,7 @@ local function preprocessWithCompiler(inc)
 		print("Insert this into your include-list-"..ffi.os:lower()..".lua:")
 		print()
 		print('\t-- used by '.. newIncInfo.inc.inc..' '..prevIncInfo.inc.inc)
-		print("\t{inc='"..newIncInfo.search.."', out='"..ffi.os..'/'..newIncInfo.search:sub(2,-2):gsub('%.h$', '.lua').."'},")
+		print("\t{inc='"..newIncInfo.search.."', out='"..ffi.os..'/c/'..newIncInfo.search:sub(2,-2):gsub('%.h$', '.lua').."'},")
 		print()
 		print"TODO Automatically put in a request to generate this internal #include file and then re-run everything."
 		print"Or if one of those two dependencies is the same as the source then change your generation order."

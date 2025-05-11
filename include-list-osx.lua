@@ -25,193 +25,193 @@ return table{
 -- 3) once you're finished, any stored internally-requested files not requested this time around should be reported (out with the old).
 
 	-- used by <time.h> <string.h>
-	{inc='<Availability.h>', out='OSX/Availability.lua'},
+	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
 	
 	-- used by <_types.h> <machine/types.h>
 	{inc='<i386/_types.h>', out='OSX/c/i386/_types.lua'},
 
 	-- used by <_types.h> <machine/types.h>
-	{inc='<sys/cdefs.h>', out='OSX/sys/cdefs.lua'},
+	{inc='<sys/cdefs.h>', out='OSX/c/sys/cdefs.lua'},
 
 	-- used by <machine/types.h> <_types.h>
-	{inc='<machine/_types.h>', out='OSX/machine/_types.lua'},
+	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
 
 	-- used by <sys/_pthread/_pthread_attr_t.h> <sys/_types.h>
-	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/sys/_pthread/_pthread_types.lua'},
+	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/c/sys/_pthread/_pthread_types.lua'},
 
 	-- used by <sys/signal.h> <_types.h>
-	{inc='<sys/_types.h>', out='OSX/sys/_types.lua'},
+	{inc='<sys/_types.h>', out='OSX/c/sys/_types.lua'},
 
 	-- used by <time.h> <string.h>
-	{inc='<_types.h>', out='OSX/_types.lua'},
+	{inc='<_types.h>', out='OSX/c/_types.lua'},
 
 	-- used by <stdint.h> <machine/types.h>
-	{inc='<sys/_types/_int8_t.h>', out='OSX/sys/_types/_int8_t.lua'},
+	{inc='<sys/_types/_int8_t.h>', out='OSX/c/sys/_types/_int8_t.lua'},
 
 	-- used by <stdint.h> <machine/types.h>
-	{inc='<sys/_types/_int16_t.h>', out='OSX/sys/_types/_int16_t.lua'},
+	{inc='<sys/_types/_int16_t.h>', out='OSX/c/sys/_types/_int16_t.lua'},
 
 	-- used by <stdint.h> <machine/types.h>
-	{inc='<sys/_types/_int32_t.h>', out='OSX/sys/_types/_int32_t.lua'},
+	{inc='<sys/_types/_int32_t.h>', out='OSX/c/sys/_types/_int32_t.lua'},
 
 	-- used by <stdint.h> <machine/types.h>
-	{inc='<sys/_types/_int64_t.h>', out='OSX/sys/_types/_int64_t.lua'},
+	{inc='<sys/_types/_int64_t.h>', out='OSX/c/sys/_types/_int64_t.lua'},
 
 	-- used by <stdint.h> <machine/types.h>
-	{inc='<sys/_types/_intptr_t.h>', out='OSX/sys/_types/_intptr_t.lua'},
+	{inc='<sys/_types/_intptr_t.h>', out='OSX/c/sys/_types/_intptr_t.lua'},
 
 	-- used by <stdint.h> <machine/types.h>
-	{inc='<sys/_types/_uintptr_t.h>', out='OSX/sys/_types/_uintptr_t.lua'},
+	{inc='<sys/_types/_uintptr_t.h>', out='OSX/c/sys/_types/_uintptr_t.lua'},
 
 	-- used by <time.h> <string.h>
-	{inc='<machine/types.h>', out='OSX/machine/types.lua'},
+	{inc='<machine/types.h>', out='OSX/c/machine/types.lua'},
 
 	-- used by <time.h> <string.h>
-	{inc='<sys/_types/_size_t.h>', out='OSX/sys/_types/_size_t.lua'},
+	{inc='<sys/_types/_size_t.h>', out='OSX/c/sys/_types/_size_t.lua'},
 
 	-- used by <errno.h> <string.h>
-	{inc='<sys/_types/_errno_t.h>', out='OSX/sys/_types/_errno_t.lua'},
+	{inc='<sys/_types/_errno_t.h>', out='OSX/c/sys/_types/_errno_t.lua'},
 
 	-- used by <stdio.h> <string.h>
-	{inc='<sys/_types/_ssize_t.h>', out='OSX/sys/_types/_ssize_t.lua'},
+	{inc='<sys/_types/_ssize_t.h>', out='OSX/c/sys/_types/_ssize_t.lua'},
 
 	-- used by <stdlib.h> <sys/signal.h>
-	{inc='<sys/_types/_pid_t.h>', out='OSX/sys/_types/_pid_t.lua'},
+	{inc='<sys/_types/_pid_t.h>', out='OSX/c/sys/_types/_pid_t.lua'},
 
 	-- used by <pthread.h> <sys/signal.h>
-	{inc='<sys/_pthread/_pthread_attr_t.h>', out='OSX/sys/_pthread/_pthread_attr_t.lua'},
+	{inc='<sys/_pthread/_pthread_attr_t.h>', out='OSX/c/sys/_pthread/_pthread_attr_t.lua'},
 
 	-- used by <pthread.h> <sys/signal.h>
-	{inc='<sys/_types/_sigset_t.h>', out='OSX/sys/_types/_sigset_t.lua'},
+	{inc='<sys/_types/_sigset_t.h>', out='OSX/c/sys/_types/_sigset_t.lua'},
 	
 	-- used by <unistd.h> <sys/signal.h>
-	{inc='<sys/_types/_uid_t.h>', out='OSX/sys/_types/_uid_t.lua'},
+	{inc='<sys/_types/_uid_t.h>', out='OSX/c/sys/_types/_uid_t.lua'},
 
 	-- used by <signal.h> <stdlib.h>
-	{inc='<sys/signal.h>', out='OSX/sys/signal.lua'},
+	{inc='<sys/signal.h>', out='OSX/c/sys/signal.lua'},
 
 	-- used by <wchar.h> <stdlib.h>
-	{inc='<sys/_types/_ct_rune_t.h>', out='OSX/sys/_types/_ct_rune_t.lua'},
+	{inc='<sys/_types/_ct_rune_t.h>', out='OSX/c/sys/_types/_ct_rune_t.lua'},
 
 	-- used by <wchar.h> <stdlib.h>
-	{inc='<sys/_types/_rune_t.h>', out='OSX/sys/_types/_rune_t.lua'},
+	{inc='<sys/_types/_rune_t.h>', out='OSX/c/sys/_types/_rune_t.lua'},
 
 	-- used by <wchar.h> <stdlib.h>
-	{inc='<sys/_types/_wchar_t.h>', out='OSX/sys/_types/_wchar_t.lua'},
+	{inc='<sys/_types/_wchar_t.h>', out='OSX/c/sys/_types/_wchar_t.lua'},
 
 	-- used by <stdint.h> <stdlib.h>
-	{inc='<_types/_uint8_t.h>', out='OSX/_types/_uint8_t.lua'},
+	{inc='<_types/_uint8_t.h>', out='OSX/c/_types/_uint8_t.lua'},
 
 	-- used by <stdint.h> <stdlib.h>
-	{inc='<_types/_uint16_t.h>', out='OSX/_types/_uint16_t.lua'},
+	{inc='<_types/_uint16_t.h>', out='OSX/c/_types/_uint16_t.lua'},
 
 	-- used by <stdint.h> <stdlib.h>
-	{inc='<_types/_uint32_t.h>', out='OSX/_types/_uint32_t.lua'},
+	{inc='<_types/_uint32_t.h>', out='OSX/c/_types/_uint32_t.lua'},
 
 	-- used by <stdint.h> <stdlib.h>
-	{inc='<_types/_uint64_t.h>', out='OSX/_types/_uint64_t.lua'},
+	{inc='<_types/_uint64_t.h>', out='OSX/c/_types/_uint64_t.lua'},
 
 	-- used by <stdint.h> <stdlib.h>
-	{inc='<_types/_intmax_t.h>', out='OSX/_types/_intmax_t.lua'},
+	{inc='<_types/_intmax_t.h>', out='OSX/c/_types/_intmax_t.lua'},
 
 	-- used by <stdint.h> <stdlib.h>
-	{inc='<_types/_uintmax_t.h>', out='OSX/_types/_uintmax_t.lua'},
+	{inc='<_types/_uintmax_t.h>', out='OSX/c/_types/_uintmax_t.lua'},
 
 	-- used by <fcntl.h> <stdlib.h>
-	{inc='<sys/_types/_mode_t.h>', out='OSX/sys/_types/_mode_t.lua'},
+	{inc='<sys/_types/_mode_t.h>', out='OSX/c/sys/_types/_mode_t.lua'},
 
 	-- used by <fcntl.h> <stdio.h>
-	{inc='<sys/_types/_off_t.h>', out='OSX/sys/_types/_off_t.lua'},
+	{inc='<sys/_types/_off_t.h>', out='OSX/c/sys/_types/_off_t.lua'},
 
 	-- used by <fcntl.h> <time.h>
-	{inc='<sys/_types/_timespec.h>', out='OSX/sys/_types/_timespec.lua'},
+	{inc='<sys/_types/_timespec.h>', out='OSX/c/sys/_types/_timespec.lua'},
 
 	-- used by <unistd.h> <stdio.h>
-	{inc='<_ctermid.h>', out='OSX/_ctermid.lua'},
+	{inc='<_ctermid.h>', out='OSX/c/_ctermid.lua'},
 
 	-- used by <unistd.h> <stdlib.h>
-	{inc='<sys/_types/_timeval.h>', out='OSX/sys/_types/_timeval.lua'},
+	{inc='<sys/_types/_timeval.h>', out='OSX/c/sys/_types/_timeval.lua'},
 
 	-- used by <unistd.h> <time.h>
-	{inc='<sys/_types/_time_t.h>', out='OSX/sys/_types/_time_t.lua'},
+	{inc='<sys/_types/_time_t.h>', out='OSX/c/sys/_types/_time_t.lua'},
 
 	-- used by <unistd.h> <stdlib.h>
-	{inc='<sys/_types/_dev_t.h>', out='OSX/sys/_types/_dev_t.lua'},
+	{inc='<sys/_types/_dev_t.h>', out='OSX/c/sys/_types/_dev_t.lua'},
 
 	-- used by <sys/select.h> <unistd.h>
-	{inc='<sys/_types/_fd_def.h>', out='OSX/sys/_types/_fd_def.lua'},
+	{inc='<sys/_types/_fd_def.h>', out='OSX/c/sys/_types/_fd_def.lua'},
 
 	-- used by <sys/select.h> <unistd.h>
-	{inc='<sys/_types/_suseconds_t.h>', out='OSX/sys/_types/_suseconds_t.lua'},
+	{inc='<sys/_types/_suseconds_t.h>', out='OSX/c/sys/_types/_suseconds_t.lua'},
 
 	-- used by <sys/select.h> <unistd.h>
-	{inc='<sys/_select.h>', out='OSX/sys/_select.lua'},
+	{inc='<sys/_select.h>', out='OSX/c/sys/_select.lua'},
 
 	-- used by <sys/stat.h> <dirent.h>
-	{inc='<sys/_types/_ino_t.h>', out='OSX/sys/_types/_ino_t.lua'},
+	{inc='<sys/_types/_ino_t.h>', out='OSX/c/sys/_types/_ino_t.lua'},
 
 	-- used by <sys/stat.h> <unistd.h>
-	{inc='<sys/_types/_gid_t.h>', out='OSX/sys/_types/_gid_t.lua'},
+	{inc='<sys/_types/_gid_t.h>', out='OSX/c/sys/_types/_gid_t.lua'},
 
 	-- used by <sys/stat.h> <fcntl.h>
-	{inc='<sys/_types/_filesec_t.h>', out='OSX/sys/_types/_filesec_t.lua'},
+	{inc='<sys/_types/_filesec_t.h>', out='OSX/c/sys/_types/_filesec_t.lua'},
 
 	-- used by <sys/types.h> <stdlib.h>
-	{inc='<machine/endian.h>', out='OSX/machine/endian.lua'},
+	{inc='<machine/endian.h>', out='OSX/c/machine/endian.lua'},
 
 	-- used by <sys/types.h> <sys/stat.h>
-	{inc='<sys/_types/_blkcnt_t.h>', out='OSX/sys/_types/_blkcnt_t.lua'},
+	{inc='<sys/_types/_blkcnt_t.h>', out='OSX/c/sys/_types/_blkcnt_t.lua'},
 
 	-- used by <sys/types.h> <sys/stat.h>
-	{inc='<sys/_types/_blksize_t.h>', out='OSX/sys/_types/_blksize_t.lua'},
+	{inc='<sys/_types/_blksize_t.h>', out='OSX/c/sys/_types/_blksize_t.lua'},
 
 	-- used by <sys/types.h> <sys/stat.h>
-	{inc='<sys/_types/_ino64_t.h>', out='OSX/sys/_types/_ino64_t.lua'},
+	{inc='<sys/_types/_ino64_t.h>', out='OSX/c/sys/_types/_ino64_t.lua'},
 
 	-- used by <sys/types.h> <sys/stat.h>
-	{inc='<sys/_types/_nlink_t.h>', out='OSX/sys/_types/_nlink_t.lua'},
+	{inc='<sys/_types/_nlink_t.h>', out='OSX/c/sys/_types/_nlink_t.lua'},
 
 	-- used by <sys/types.h> <stdlib.h>
-	{inc='<sys/_types/_id_t.h>', out='OSX/sys/_types/_id_t.lua'},
+	{inc='<sys/_types/_id_t.h>', out='OSX/c/sys/_types/_id_t.lua'},
 
 	-- used by <sys/types.h> <time.h>
-	{inc='<sys/_types/_clock_t.h>', out='OSX/sys/_types/_clock_t.lua'},
+	{inc='<sys/_types/_clock_t.h>', out='OSX/c/sys/_types/_clock_t.lua'},
 
 	-- used by <sys/types.h> <unistd.h>
-	{inc='<sys/_types/_useconds_t.h>', out='OSX/sys/_types/_useconds_t.lua'},
+	{inc='<sys/_types/_useconds_t.h>', out='OSX/c/sys/_types/_useconds_t.lua'},
 
 	-- used by <sys/types.h> <string.h>
-	{inc='<sys/_types/_rsize_t.h>', out='OSX/sys/_types/_rsize_t.lua'},
+	{inc='<sys/_types/_rsize_t.h>', out='OSX/c/sys/_types/_rsize_t.lua'},
 
 	-- used by <pthread.h> <signal.h>
-	{inc='<sys/_pthread/_pthread_t.h>', out='OSX/sys/_pthread/_pthread_t.lua'},
+	{inc='<sys/_pthread/_pthread_t.h>', out='OSX/c/sys/_pthread/_pthread_t.lua'},
 
 	-- used by <sched.h> <pthread.h>
-	{inc='<pthread/pthread_impl.h>', out='OSX/pthread/pthread_impl.lua'},
+	{inc='<pthread/pthread_impl.h>', out='OSX/c/pthread/pthread_impl.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_cond_t.h>', out='OSX/sys/_pthread/_pthread_cond_t.lua'},
+	{inc='<sys/_pthread/_pthread_cond_t.h>', out='OSX/c/sys/_pthread/_pthread_cond_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_condattr_t.h>', out='OSX/sys/_pthread/_pthread_condattr_t.lua'},
+	{inc='<sys/_pthread/_pthread_condattr_t.h>', out='OSX/c/sys/_pthread/_pthread_condattr_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_mutex_t.h>', out='OSX/sys/_pthread/_pthread_mutex_t.lua'},
+	{inc='<sys/_pthread/_pthread_mutex_t.h>', out='OSX/c/sys/_pthread/_pthread_mutex_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_mutexattr_t.h>', out='OSX/sys/_pthread/_pthread_mutexattr_t.lua'},
+	{inc='<sys/_pthread/_pthread_mutexattr_t.h>', out='OSX/c/sys/_pthread/_pthread_mutexattr_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_once_t.h>', out='OSX/sys/_pthread/_pthread_once_t.lua'},
+	{inc='<sys/_pthread/_pthread_once_t.h>', out='OSX/c/sys/_pthread/_pthread_once_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_rwlock_t.h>', out='OSX/sys/_pthread/_pthread_rwlock_t.lua'},
+	{inc='<sys/_pthread/_pthread_rwlock_t.h>', out='OSX/c/sys/_pthread/_pthread_rwlock_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_rwlockattr_t.h>', out='OSX/sys/_pthread/_pthread_rwlockattr_t.lua'},
+	{inc='<sys/_pthread/_pthread_rwlockattr_t.h>', out='OSX/c/sys/_pthread/_pthread_rwlockattr_t.lua'},
 
 	-- used by <sys/types.h> <pthread.h>
-	{inc='<sys/_pthread/_pthread_key_t.h>', out='OSX/sys/_pthread/_pthread_key_t.lua'},
+	{inc='<sys/_pthread/_pthread_key_t.h>', out='OSX/c/sys/_pthread/_pthread_key_t.lua'},
 
 
 --]====] -- END INTERNALLY REQUESTED
