@@ -24,7 +24,7 @@ elseif req ~= 'all' then
 	end
 end
 
-local outdirbase = path'results'
+local outdirbase = path'results'	-- also in generate.lua
 for _,inc in ipairs(includeList) do
 	if not inc.dontGen then
 		local outpath = outdirbase/'ffi'/inc.out

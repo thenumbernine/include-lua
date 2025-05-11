@@ -595,13 +595,6 @@ local function preprocessWithCompiler(inc)
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 
-
-	-- now for all previously included files ...
-	-- search that file output and search this file output and see if there are any common include subsets
-	do
-		
-	end
-
 	local luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
 	local luaIncMacroFiles = table(luaBindingIncFiles):append(inc.macroincs)
 
@@ -609,7 +602,7 @@ local function preprocessWithCompiler(inc)
 	-- this way we can find the path in the preprocessor output
 	local includeForPath = {}
 	for _,includeArg in ipairs(luaIncMacroFiles) do
-		-- TODO best way to get include lookup 
+		-- TODO best way to get include lookup
 		-- This outputs the include graph ... but all I need is the first result.
 		local out = io.readproc("echo '#include "..includeArg.."' | (gcc -H -MM -E - 2>&1)")
 		local lines = string.split(out, '\n')
@@ -701,7 +694,7 @@ local function preprocessWithCompiler(inc)
 				lines:remove(i)
 				i = i - 1
 			elseif l:find('^#include', 1) then
-				-- -dI inserts the #include directive ... 
+				-- -dI inserts the #include directive ...
 				-- ... and then a preprocessor markup for the current include file
 				-- ... and then a preprocessor markup for the included file.
 				-- so save this for our mapping from abs path to include directive
@@ -811,6 +804,91 @@ path'~before-final.h':write(code)
 	if inc.final then
 		code = inc.final(code, preproc)
 		assert.type(code, 'string', "expected final() to return a string")
+	end
+
+
+	-- now for all previously included files ...
+	-- search that file output and search this file output and see if there are any common include subsets
+	-- NOTICE this is a job for make.lua sort of
+	do
+		-- also in make.lua
+		local outdir = path'results/ffi'
+
+		local function parseIncludeBeginComment(l, l2)
+			local includeInfo = l:match'^/%* %++ BEGIN (.*) %*/$'
+			if includeInfo then
+				local isEmpty = l2 and l2:match('^/%* %++ END '..string.patescape(includeInfo)..' %*/$')
+				if not isEmpty then
+					-- this is the includeArg and the includePath
+					-- match both? or just the 2nd?
+					-- match 2nd and complain if 2nd matches but both don't match
+					local includeArg = includeInfo:match'^(<[^>]*>)'
+						or includeInfo:match'^(".-[^\\]")'
+						or error("couldn't pick out <> or \"\" argument from #include command: "..l)
+					local includePath = includeInfo:sub(#includeArg+2)
+					return includeArg, includePath
+				end
+			end
+		end
+		local lines = string.split(code, '\n')
+		-- TODO you can do this during the first pass
+		local prevIncludeInfos = {}
+		for i,l in ipairs(lines) do
+			local includeArg, includePath = parseIncludeBeginComment(l, lines[i+1])
+			if includeArg then
+				local prevIncInfo = prevIncludeInfos[includePath]
+				local newIncInfo = {
+					includeArg = includeArg,
+					filename = outdir/inc.out,
+					line = i,
+				}
+				-- hmmmmm
+				-- if it's in the same lua file and included twice
+				-- then often the included-file's own #ifdef / #pragma-once will kick in
+				-- and the 2nd one will be empty
+				-- TODO check for empty ones?
+				if prevIncInfo then
+					print('1st:', tolua(prevIncInfo))
+					print('2nd:', tolua(newIncInfo))
+					error"somehow we included the same path twice!"
+				end
+				prevIncludeInfos[includePath] = newIncInfo
+			end
+		end
+
+		local incIndex = assert(includeList:find(inc))
+		for i=1,incIndex-1 do
+			local pinc = includeList[i]
+			local prevfn = outdir(pinc.out)
+			if not prevfn:exists() then
+				print('!!! '..prevfn.." doesn't exist - can't compare like include trees")
+			end
+			local cmplines = string.split(assert(prevfn:read()), '\n')
+			for i,l in ipairs(cmplines) do
+				local includeArg, includePath = parseIncludeBeginComment(l, cmplines[i+1])
+				if includeArg then
+					local prevIncInfo = prevIncludeInfos[includePath]
+					local newIncInfo = {
+						includeArg = includeArg,
+						filename = prevfn,
+						line = i,
+					}
+					if prevIncInfo then
+						if prevIncInfo.filename == prevfn then
+							print('1st:', tolua(prevIncInfo))
+							print('2nd:', tolua(newIncInfo))
+							error"somehow we included the same path twice!"
+						end
+						print("found redundant include file!!!!")
+						print(" 1st is in "..prevfn)
+						print(" 2nd is in "..prevIncInfo.filename)
+						assert.eq(includeArg, prevIncInfo.includeArg, "and their #include arguments don't match!")
+						error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
+					end
+					prevIncludeInfos[includePath] = newIncInfo
+				end
+			end
+		end
 	end
 
 	return code
