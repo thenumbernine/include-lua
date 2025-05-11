@@ -595,8 +595,28 @@ local function preprocessWithCompiler(inc)
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 
-	-- 1) get builtin macros
-	local builtinMacroLines = io.readproc'gcc -dM -E - < /dev/null 2>&1'
+
+	-- now for all previously included files ...
+	-- search that file output and search this file output and see if there are any common include subsets
+	do
+		
+	end
+
+	local luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
+	local luaIncMacroFiles = table(luaBindingIncFiles):append(inc.macroincs)
+
+	-- for all the includes we want to keep macros for, get a mapping from the include directive to the absolute path
+	-- this way we can find the path in the preprocessor output
+	local includeForPath = {}
+	for _,includeArg in ipairs(luaIncMacroFiles) do
+		-- TODO best way to get include lookup 
+		-- This outputs the include graph ... but all I need is the first result.
+		local out = io.readproc("echo '#include "..includeArg.."' | (gcc -H -MM -E - 2>&1)")
+		local lines = string.split(out, '\n')
+		local line = lines[1]
+		assert(line:match'^%. ')
+		includeForPath[line:sub(3)] = includeArg
+	end
 
 	-- 2) run preprocessor on source file
 	-- https://gcc.gnu.org/onlinedocs/gcc/Directory-Options.html
@@ -617,6 +637,7 @@ local function preprocessWithCompiler(inc)
 			'|',
 			'gcc',
 			-- https://gcc.gnu.org/onlinedocs/gcc/Preprocessor-Options.html
+			'-dI',	-- keep #include too, so I can map from #include directive to absolute filename
 			'-dD',	-- keep #define / #undef *AND* preprocessor-output
 			'-E',	-- do the preprocessor output
 			-- * I was also adding -I $HOME/include .. bad idea?
@@ -637,6 +658,7 @@ local function preprocessWithCompiler(inc)
 	local lines = string.split(string.trim(code), '\n')
 
 	-- 3) transform to my format
+	local lastIncludeArg
 	local incstack = table()
 	local macros = {}
 	local macrosInOrder = table()
@@ -652,7 +674,7 @@ local function preprocessWithCompiler(inc)
 				if top == '<built-in>'
 				or top == '<command line>'
 				-- TODO
-				-- or not table{inc.inc}:append(inc.moreincs, inc.macroincs):find(top's original #include name ... how to reverse-search that ...)
+				or not luaIncMacroFiles:find(includeForPath[top])
 				then
 					-- don't save builtins
 					-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
@@ -678,6 +700,17 @@ local function preprocessWithCompiler(inc)
 				end
 				lines:remove(i)
 				i = i - 1
+			elseif l:find('^#include', 1) then
+				-- -dI inserts the #include directive ... 
+				-- ... and then a preprocessor markup for the current include file
+				-- ... and then a preprocessor markup for the included file.
+				-- so save this for our mapping from abs path to include directive
+				local rest = l:match'^#include (.*)$'
+				lastIncludeArg = rest:match'^(<[^>]*>)'
+					or rest:match'^(".-[^\\]")'
+					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
+				lines:remove(i)
+				i = i - 1
 			elseif l:find('^#', 1) then
 				-- handle preprocessor include results
 				-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
@@ -698,7 +731,8 @@ local function preprocessWithCompiler(inc)
 						lines:remove(i)
 						i = i - 1
 					else
-						lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..filename..' */'
+						includeForPath[filename] = lastIncludeArg
+						lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastIncludeArg..' '..filename..' */'
 					end
 				elseif flags[2] then
 					-- returning *to* a file (so the last file on the stack is now closed)
@@ -709,7 +743,8 @@ local function preprocessWithCompiler(inc)
 						lines:remove(i)
 						i = i - 1
 					else
-						lines[i] = '/* '..('+'):rep(#incstack)..' END '..top..' */'
+						local incArg = includeForPath[top]
+						lines[i] = '/* '..('+'):rep(#incstack)..' END '..incArg..' '..top..' */'
 					end
 					incstack:remove()
 				else
@@ -721,8 +756,7 @@ local function preprocessWithCompiler(inc)
 			end
 			i = i + 1
 		end
---		assert.len(incstack, 1)
---		lines:insert('/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */')
+		assert.len(incstack, 0)
 	end
 
 	-- [[ append define's
