@@ -1,7 +1,15 @@
+local table = require 'ext.table'
+local string = require 'ext.string'
+
 local util = require 'util'
+local safegsub = util.safegsub
 local fixEnumsAndDefineMacrosInterleaved = util.fixEnumsAndDefineMacrosInterleaved
 
-local table = require 'ext.table'
+local function removeAttrAvailability(code)
+	-- luajit can't handle these attributes ...
+	return safegsub(code, '__attribute__%(%(availability%b()%)%)', '')
+		:gsub('%s*\n%s*\n', '\n')
+end
 
 return table{
 
@@ -97,9 +105,7 @@ return table{
 		inc = '<time.h>',
 		out = 'OSX/c/time.lua',
 		final = function(code)
-			-- luajit can't handle these attributes ...
-			code = code:gsub('__attribute__%(%(availability%b()%)%)', '')
-				:gsub('%s*\n%s*\n', '\n')
+			code = removeAttrAvailability(code)
 			return code
 		end,
 	},
@@ -129,13 +135,11 @@ return setmetatable({
 	{
 		inc = '<stdlib.h>',
 		out = 'OSX/c/stdlib.lua',
+		macros = {
+			"_Nonnull=",	-- somehow the builtin define missed this one ...
+		},
 		final = function(code)
-			-- how come __BLOCKS__ is defined ...
-			-- TODO disable __BLOCKS__ to omit these:
-			code = string.split(code, '\n'):filter(function(l)
-				return not l:find'_b%('
-			end):concat'\n'
-
+			code = removeAttrAvailability(code)
 			return code
 		end,
 	},

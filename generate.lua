@@ -594,7 +594,7 @@ local function preprocessWithCompiler(inc)
 
 	print()
 	print('GENERATING '..inc.out)
-	
+
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 
@@ -725,6 +725,9 @@ local function preprocessWithCompiler(inc)
 			'-E',	-- do the preprocessor output
 			-- * I was also adding -I $HOME/include .. bad idea?
 			'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
+
+			-- clang-specific ?
+			'-fno-blocks',	-- disable __BLOCKS__ and those stupid ^ pointers
 		},
 		-- * add `pkg-config ${name} --cflags` if it's there
 		inc.pkgconfig and {(io.readproc'pkg-config --cflags '..inc.pkgconfig)} or nil,
@@ -783,12 +786,16 @@ local function preprocessWithCompiler(inc)
 				end
 				lines:remove(i)
 				i = i - 1
-			elseif l:find('^#include', 1) then
+			elseif l:find('^#include', 1)
+			or l:find('^#include_next', 1)
+			then
 				-- -dI inserts the #include directive ...
 				-- ... and then a preprocessor markup for the current include file
 				-- ... and then a preprocessor markup for the included file.
 				-- so save this for our mapping from abs path to include directive
 				local rest = l:match'^#include (.*)$'
+					or l:match'^#include_next (.*)$'
+					or error("couldn't pick out the #include argument from: "..l)
 				lastSearch = rest:match'^(<[^>]*>)'
 					or rest:match'^(".-[^\\]")'
 					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
@@ -811,7 +818,7 @@ local function preprocessWithCompiler(inc)
 					local top = {
 						path = filename,
 						search = lastSearch,
-						suppress = wasSuppressed, 
+						suppress = wasSuppressed,
 					}
 					incstack:insert(top)
 					if filename == '<built-in>'
@@ -833,6 +840,7 @@ local function preprocessWithCompiler(inc)
 						local incinfo = prevIncludeInfos[filename]
 						if incinfo and #incstack > 1 then	-- don't use ourselves
 							if not wasSuppressed then
+-- TODO TODO TODO this is spitting out garbage locations
 								lines:insert(i+1, "]] require 'ffi.req' '"
 									..incinfo.lua.path:match'^(.*)%.lua$':gsub('/', '.')
 									.."' ffi.cdef[[")
@@ -868,7 +876,7 @@ local function preprocessWithCompiler(inc)
 				if incstack:last().suppress then
 					lines:remove(i)
 					i = i - 1
-				end		
+				end
 			end
 			i = i + 1
 		end
@@ -932,7 +940,7 @@ path'~before-final.h':write(code)
 	-- now for all previously included files ...
 	-- search that file output and search this file output and see if there are any common include subsets
 	-- NOTICE this is a job for make.lua sort of
-	do	
+	do
 		-- WRITE CODE HERE - BEFORE CHECKING DUPLICATE INCLUDE TREES
 		-- that means we're writing it twice
 		-- TODO move the write out of make.lua
