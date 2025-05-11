@@ -543,7 +543,7 @@ local function preprocessWithLuaPreprocessor(inc)
 	--print('macros: '..tolua(preproc.macros)..'\n')
 	--io.stderr:write('macros: '..tolua(preproc.macros)..'\n')
 
-	-- [[ prepend enums / define's to the beginning
+	-- [[ append enums / define's
 	local lines = table()
 	for _,kv in ipairs(preproc.luaGenerateEnumsInOrder) do
 		local k, v = next(kv)
@@ -591,7 +591,8 @@ Now it has to track variable types in order to evaluate.
 So here's my attempt to just use gcc -E and transform the output into my preprocessor's output
 --]]
 local function preprocessWithCompiler(inc)
-	
+
+	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 	
 	-- 1) get builtin macros
@@ -612,7 +613,12 @@ local function preprocessWithCompiler(inc)
 				:mapi(function(inc)
 					return '#include '..inc..'\\n'
 				end):concat()
-				.."' | gcc -E",
+				.."'",
+			'|',
+			'gcc',
+			-- https://gcc.gnu.org/onlinedocs/gcc/Preprocessor-Options.html
+			'-dD',	-- keep #define / #undef *AND* preprocessor-output
+			'-E',	-- do the preprocessor output
 			-- * I was also adding -I $HOME/include .. bad idea?
 			'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
 		},		
@@ -629,26 +635,42 @@ local function preprocessWithCompiler(inc)
 	assert(os.exec(cmd))
 	local code = assert(tmpfn:read())
 	local lines = string.split(string.trim(code), '\n')
-	for _,l in ipairs(string.split(string.trim[[
-# 1 "<stdin>"
-# 1 "<built-in>" 1
-# 1 "<built-in>" 3
-# 394 "<built-in>" 3
-# 1 "<command line>" 1
-# 1 "<built-in>" 2
-# 1 "<stdin>" 2
-]], '\n')) do
-		assert.eq(lines:remove(1), l)
-	end
-	assert.eq(lines:remove(), '# 2 "<stdin>" 2')
 
 	-- 3) transform to my format
 	local incstack = table()
+	local macros = {}
+	local macrosInOrder = table()
 	do
 		local i = 1
 		while i <= #lines do
 			local l = lines[i]
 			if l == '' then
+				lines:remove(i)
+				i = i - 1
+			elseif l:find('^#define', 1) then
+				local top = incstack:last()
+				if top == '<built-in>' 
+				or top == '<command line>'
+				-- TODO
+				-- or not table{inc.inc}:append(inc.moreincs, inc.macroincs):find(top's original #include name ... how to reverse-search that ...)
+				then
+					-- don't save builtins
+					-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
+				else
+					local k,v = l:match'^#define%s+([_%a][_%w]*)%s*(.-)$'
+					macros[k] = v
+					macrosInOrder:insert{[k] = v}
+				end
+				lines:remove(i)
+				i = i - 1
+			elseif l:find('^#undef', 1) then
+				local k = l:match'^#undef%s+([_%a][_%w]*)$'
+				macros[k] = nil
+				for j=#macrosInOrder,1,-1 do
+					if next(macrosInOrder[j]) == k then
+						macrosInOrder:remove(j)
+					end
+				end
 				lines:remove(i)
 				i = i - 1
 			elseif l:find('^#', 1) then
@@ -659,15 +681,26 @@ local function preprocessWithCompiler(inc)
 				filename = filename:sub(2,-2):gsub('\\"', '"')
 
 				flags = string.split(string.trim(flags), ' '):mapi(function(flag)
+					if flag == '' then return end	-- for empty strings
 					return true, assert(tonumber(flag))
 				end):setmetatable(nil)
 				if flags[1] then
 					-- begin file
 					incstack:insert(filename)
-					lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..filename..' */'
+					if filename == '<built-in>' and filename == '<command-line' then
+						lines:remove(i)
+						i = i - 1
+					else
+						lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..filename..' */'
+					end
 				elseif flags[2] then
 					-- returning *to* a file (so the last file on the stack is now closed)
-					lines[i] = '/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */'
+					if filename == '<built-in>' and filename == '<command-line' then
+						lines:remove(i)
+						i = i - 1
+					else
+						lines[i] = '/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */'
+					end
 					incstack:remove()
 				else
 					lines:remove(i)
@@ -678,9 +711,40 @@ local function preprocessWithCompiler(inc)
 			end
 			i = i + 1
 		end
-		assert.len(incstack, 1)
-		lines:insert('/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */')
+--		assert.len(incstack, 1)
+--		lines:insert('/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */')
 	end
+	
+	-- [[ append define's
+	for _,kv in ipairs(macrosInOrder) do
+		local k,origv = next(kv)
+		local v
+		if origv == '' then 
+			v = '1'
+		else	
+			vnumstr = tonumber(v)
+			if vnumstr then
+				v = origv
+			else
+				for _,suffix in ipairs(cNumberSuffixes) do
+					vnumstr = origv:lower():match('(.*)'..suffix..'$')
+					if vnumstr 
+					and tonumber(vnumstr)
+					then
+						--v = tostring((assert(tonumber(vnumstr))))	-- use it as is
+						v = vnumstr	-- use as is but truncated ... this messes up int64's outside the range of double ...
+					end
+				end
+			end
+		end
+		if v then
+			lines:insert('enum { '..k..' = '..v..' };')
+		else
+			lines:insert('/* #define '..k..' '..origv..' ### define is not number */')
+		end
+	end
+	--]]
+
 	code = lines:concat'\n'..'\n'	-- remove blank newlines
 
 	-- TODO
