@@ -721,16 +721,50 @@ os.exit(1)
 	local luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
 	local luaIncMacroFiles = table(luaBindingIncFiles):append(inc.macroincs)
 
+	local function cflagsForInc(inc)
+		local cflags = table()
+		:append(
+			({
+				OSX = {
+					'-fno-blocks',	-- disable __BLOCKS__ and those stupid ^ pointers
+					"-D_Nonnull=",	-- somehow the builtin define missed this one ...
+					"-D_Nullable=",	-- this and _Nonnull, should I collect them and add them to all osx clang runs?
+				},
+			})[ffi.os],
+			{
+				-- * I was also adding -I $HOME/include .. bad idea?
+				'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
+			},
+			-- * add `pkg-config ${name} --cflags` if it's there
+			inc.pkgconfig and {string.trim(io.readproc('pkg-config --cflags '..inc.pkgconfig))} or nil,
+			-- * add `inc.includedirs`
+			table(inc.includedirs):mapi(function(inc) return '-I '..path(inc):escape() end),
+			-- * set `inc.macros` with `-D`
+			table(inc.macros):mapi(function(macro) return '"-D'..macro..'"' end)
+		)
+		:concat' '
+		return cflags
+	end
+
 	-- for all the includes we want to keep macros for, get a mapping from the include directive to the absolute path
 	-- this way we can find the path in the preprocessor output
 	local searchForPath = {}
 	for _,search in ipairs(luaIncMacroFiles) do
 		-- TODO best way to get include lookup
 		-- This outputs the include graph ... but all I need is the first result.
-		local out = io.readproc("echo '#include "..search.."' | (gcc -H -MM -E - 2>&1)")
+		local pinc = assert(select(2, includeList:find(nil, function(o) return o.inc == search end)), "failed to find include-list entry for "..search)
+		local cmd = "echo '#include "..search.."' | (gcc -H -MM -E -x c "
+			..cflagsForInc(pinc)
+			.." - 2>&1)"
+		local out = io.readproc(cmd)
 		local lines = string.split(out, '\n')
 		local line = lines[1]
-		assert(line:match'^%. ')
+		if not line:match'^%. ' then 
+			error("searchForPath got a bad line: "..tostring(line)
+				..'\nsearch: '..search
+				..'\noutput: '..out
+				..'\ncmd: '..cmd) 
+		end
 		searchForPath[line:sub(3)] = search
 	end
 
@@ -741,42 +775,23 @@ os.exit(1)
 	-- * `inc.inc + inc.moreincs` is our list of include files to generate.
 	-- * ... + `inc.macroincs` is the list of include files to collect macros from (can we tell with gcc -E?)
 	local tmpfn = path'gcc-preproc-results.h'
-	local cmd = table()
-	:append(
-		{
-			"echo '"	-- echo is handed to system wrapped in 's
-				..table():append(inc.silentincs, {inc.inc}, inc.moreincs)
-				:mapi(function(inc)
-					return '#include '..inc..'\\n'
-				end):concat()
-				.."'",
-			'|',
-			'gcc',
-			-- https://gcc.gnu.org/onlinedocs/gcc/Preprocessor-Options.html
-			'-dI',	-- keep #include too, so I can map from #include directive to absolute filename
-			'-dD',	-- keep #define / #undef *AND* preprocessor-output
-			'-E',	-- do the preprocessor output
-			-- * I was also adding -I $HOME/include .. bad idea?
-			'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
-		},
-
-		({
-			OSX = {
-				'-fno-blocks',	-- disable __BLOCKS__ and those stupid ^ pointers
-				"-D_Nonnull=",	-- somehow the builtin define missed this one ...
-				"-D_Nullable=",	-- this and _Nonnull, should I collect them and add them to all osx clang runs?
-			},
-		})[ffi.os],
-
-		-- * add `pkg-config ${name} --cflags` if it's there
-		inc.pkgconfig and {(io.readproc'pkg-config --cflags '..inc.pkgconfig)} or nil,
-		-- * add `inc.includedirs`
-		table(inc.includedirs):mapi(function(inc) return '-I '..path(inc):escape() end),
-		-- * set `inc.macros` with `-D`
-		table(inc.macros):mapi(function(macro) return '"-D'..macro..'"' end),
-		{'- > '..tmpfn:escape()}
-	)
-	:concat' '
+	local cmd = table{
+		"echo '"	-- echo is handed to system wrapped in 's
+			..table():append(inc.silentincs, {inc.inc}, inc.moreincs)
+			:mapi(function(inc)
+				return '#include '..inc..'\\n'
+			end):concat()
+			.."'",
+		'|',
+		'gcc',
+		-- https://gcc.gnu.org/onlinedocs/gcc/Preprocessor-Options.html
+		'-dI',	-- keep #include too, so I can map from #include directive to absolute filename
+		'-dD',	-- keep #define / #undef *AND* preprocessor-output
+		'-E',	-- do the preprocessor output
+		'-x c',
+		cflagsForInc(inc),
+		'- > '..tmpfn:escape(),
+	}:concat' '
 
 	assert(os.exec(cmd))
 	local code = assert(tmpfn:read())
@@ -1013,7 +1028,10 @@ path'~before-final.h':write(code)
 	-- TODO inc.final() before lua code wrapping?
 	-- or make lua code wrapping part of a default inc.final?
 	if inc.final then
-		code = inc.final(code, preproc)
+		local fakePreproc = {
+			macros = macros,
+		}
+		code = inc.final(code, fakePreproc)
 		assert.type(code, 'string', "expected final() to return a string")
 	end
 

@@ -21,6 +21,10 @@ local io = require 'ext.io'
 local os = require 'ext.os'
 local tolua = require 'ext.tolua'
 
+local util = require 'util'
+local safegsub = util.safegsub
+local removeEnum = util.removeEnum
+
 --[[
 args:
 	code = code
@@ -368,15 +372,21 @@ end
 	},
 
 	-- apt install libffi-dev
-	{inc='<ffi.h>', out='libffi.lua', final=function(code)
-		code = [[
+	{
+		inc = '<ffi.h>',
+		out = 'libffi.lua', 
+		pkgconfig = 'libffi',	-- points to /System stuff, not homebrew...
+		final = function(code)
+			code = removeEnum(code, 'FFI_64_BIT_MAX = 9223372036854775807')
+			code = [[
 -- WARNING, this is libffi, not luajit ffi
 -- will that make my stupid ?/?.lua LUA_PATH rule screw things up?  if so then move this file ... or rename it to libffi.lua or something
 ]] .. code .. [[
 return require 'ffi.load' 'ffi'
 ]]
-		return code
-	end},
+			return code
+		end,
+	},
 
 	-- depends: stdbool.h
 	-- apt install libgif-dev
@@ -384,6 +394,7 @@ return require 'ffi.load' 'ffi'
 	{
 		inc = '<gif_lib.h>',
 		out = 'gif.lua',
+		-- pkgconfig not working for brew ...
 		includedirs = ffi.osx == 'OSX' and {
 			'/usr/local/opt/giflib/include/',
 		} or nil,
@@ -403,14 +414,6 @@ return require 'ffi.load' 'gif'
 			'<longnam.h>',
 		},
 		final=function(code, preproc)
-			-- OFF_T is define'd to off_t soo ...
-			code = removeEnum(code, 'OFF_T = 0')
-
-			-- I guess this is LLONG_MAX converted from an int64_t into a double...
-			-- might wanna FIXME eventually...
-			code = removeEnum(code, string.patescape'LONGLONG_MAX = 9.2233720368548e+18')
-			code = removeEnum(code, string.patescape'LONGLONG_MIN = -9.2233720368548e+18')
-			--FLOATNULLVALUE = -9.11912e-36F	-- don't need because the F at the end makes it fail the enum test....
 			code = removeEnum(code, string.patescape'DOUBLENULLVALUE = -9.1191291391491e-36')
 
 			local funcMacros = table()
@@ -494,8 +497,6 @@ return require 'ffi.load' 'gif'
 		pkgconfig = 'netcdf',
 		final = function(code)
 			code = removeEnum(code, string.patescape"NC_MAX_DOUBLE = 1.7976931348623157e+308")
-			code = removeEnum(code, string.patescape"NC_MAX_INT64 = 9.2233720368548e+18")
-			code = removeEnum(code, string.patescape"NC_MIN_INT64 = -9.2233720368548e+18")
 			code = code .. [[
 local wrapper = setmetatable({}, {__index = require 'ffi.load' 'netcdf'})
 wrapper.NC_MAX_DOUBLE = 1.7976931348623157e+308
@@ -607,10 +608,7 @@ return require 'ffi.load' 'OpenCL'
 		inc = '<tiffio.h>',
 		out = 'tiff.lua',
 		pkgconfig = 'libtiff-4',
-		includedirs = ffi.os == 'OSX' and {
-			'/usr/local/opt/libtiff/include',
-		} or nil,
-		-- [[ someone somewhere is getting mixed up because of symlinks so ...
+		--[[ someone somewhere is getting mixed up because of symlinks so ...
 		macroincs = {
 			'/usr/local/opt/libtiff/include/tiff.h',
 			'/usr/local/opt/libtiff/include/tiffconf.h',
@@ -649,10 +647,12 @@ return require 'ffi.load' 'OpenCL'
 					'',
 					}:append(table{
 							'TIFFLIB_VERSION_STR', 'TIFFLIB_VERSION_STR_MAJ_MIN_MIC', 'D65_X0', 'D65_Y0', 'D65_Z0', 'D50_X0', 'D50_Y0', 'D50_Z0', 'U_NEU', 'V_NEU', 'UVSCALE',
-						}:mapi(function(k)
+						}:mapi(function(k,_,t)
 							local v = preproc.macros[k]
-							v = v:match'^%((.*)F%)$' or v	-- get rid of those ( ... F) floats
-							return 'wrapper.'..k..' = '..v
+							if v then
+								v = v:match'^%((.*)F%)$' or v	-- get rid of those ( ... F) floats
+								return 'wrapper.'..k..' = '..v, #t+1
+							end
 						end)
 					):concat'\n'..'\n',
 			}
@@ -668,11 +668,16 @@ return require 'ffi.load' 'OpenCL'
 	-- windows is using 2.0.4 just because 2.0.3 and cmake is breaking for msvc
 	{
 		inc = '<jpeglib.h>',
+		pkgconfig = 'libjpeg',
+		--[[ TODO
+		-- this is needed for makeLibWrapper
+		-- but the new system needs an include-list entry for each #include search that it finds ...
 		macroincs = {
 			-- these are for the macro preprocessor to know what macros to keep for emitting into enums, vs which to throw out
 			'<jconfig.h>',
 			'<jmorecfg.h>',
 		},
+		--]]
 		out = 'jpeg.lua',
 		final = function(code, preproc)
 			return makeLibWrapper{
