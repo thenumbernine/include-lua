@@ -7,12 +7,10 @@ local path = require 'ext.path'
 local io = require 'ext.io'
 local os = require 'ext.os'
 local tolua = require 'ext.tolua'
-
+local Preproc = require 'preproc'
 
 local includeList = table(require 'include-list')
 
-
-local Preproc = require 'preproc'
 
 local ThisPreproc = Preproc:subclass()
 
@@ -282,7 +280,7 @@ end
 --[[
 'inc' is one of the entries in the includeList
 --]]
-return function(inc)
+local function preprocessWithLuaPreprocessor(inc)
 
 	local preproc = ThisPreproc()
 
@@ -482,7 +480,6 @@ return function(inc)
 	-- but for testing I enable it ... with -I.
 	--preproc:addIncludeDir('.', false)
 
-
 	-- before reading inc's properties, make sure we get the pkgconfig ones
 	inc:setupPkgConfig()
 
@@ -587,3 +584,129 @@ path'~before-final.h':write(code)
 
 	return code
 end
+
+--[[
+Ok C standards, esp typeof(), might have done my preprocessor in.
+Now it has to track variable types in order to evaluate.
+So here's my attempt to just use gcc -E and transform the output into my preprocessor's output
+--]]
+local function preprocessWithCompiler(inc)
+	
+	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
+	
+	-- 1) get builtin macros
+	local builtinMacroLines = io.readproc'gcc -dM -E - < /dev/null 2>&1'
+
+	-- 2) run preprocessor on source file
+	-- https://gcc.gnu.org/onlinedocs/gcc/Directory-Options.html
+	-- * `inc.skipincs` was a list of include files that the preprocessor was to return empty content for ... do I still need this?
+	-- * `inc.silentincs` is a list of include files to include but not collect results of.
+	-- * `inc.inc + inc.moreincs` is our list of include files to generate.
+	-- * ... + `inc.macroincs` is the list of include files to collect macros from (can we tell with gcc -E?)
+	local tmpfn = path'gcc-preproc-results.h'
+	local cmd = table()
+	:append(
+		{
+			"echo '"	-- echo is handed to system wrapped in 's 
+				..table():append(inc.silentincs, {inc.inc}, inc.moreincs)
+				:mapi(function(inc)
+					return '#include '..inc..'\\n'
+				end):concat()
+				.."' | gcc -E",
+			-- * I was also adding -I $HOME/include .. bad idea?
+			'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
+		},		
+		-- * add `pkg-config ${name} --cflags` if it's there
+		inc.pkgconfig and {(io.readproc'pkg-config --cflags '..inc.pkgconfig)} or nil,
+		-- * add `inc.includedirs`
+		table(inc.includedirs):mapi(function(inc) return '-I '..path(inc):escape() end),
+		-- * set `inc.macros` with `-D`
+		table(inc.macros):mapi(function(macro) return '"-D'..macro..'"' end),
+		{'- > '..tmpfn:escape()}
+	)
+	:concat' '
+	
+	assert(os.exec(cmd))
+	local code = assert(tmpfn:read())
+	local lines = string.split(string.trim(code), '\n')
+	for _,l in ipairs(string.split(string.trim[[
+# 1 "<stdin>"
+# 1 "<built-in>" 1
+# 1 "<built-in>" 3
+# 394 "<built-in>" 3
+# 1 "<command line>" 1
+# 1 "<built-in>" 2
+# 1 "<stdin>" 2
+]], '\n')) do
+		assert.eq(lines:remove(1), l)
+	end
+	assert.eq(lines:remove(), '# 2 "<stdin>" 2')
+
+	-- 3) transform to my format
+	local incstack = table()
+	do
+		local i = 1
+		while i <= #lines do
+			local l = lines[i]
+			if l == '' then
+				lines:remove(i)
+				i = i - 1
+			elseif l:find('^#', 1) then
+				-- handle preprocessor include results
+				-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
+				local lineno, filename, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
+				
+				filename = filename:sub(2,-2):gsub('\\"', '"')
+
+				flags = string.split(string.trim(flags), ' '):mapi(function(flag)
+					return true, assert(tonumber(flag))
+				end):setmetatable(nil)
+				if flags[1] then
+					-- begin file
+					incstack:insert(filename)
+					lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..filename..' */'
+				elseif flags[2] then
+					-- returning *to* a file (so the last file on the stack is now closed)
+					lines[i] = '/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */'
+					incstack:remove()
+				else
+					lines:remove(i)
+					i = i - 1
+				end
+			else
+				-- regular line
+			end
+			i = i + 1
+		end
+		assert.len(incstack, 1)
+		lines:insert('/* '..('+'):rep(#incstack)..' END '..incstack:last()..' */')
+	end
+	code = lines:concat'\n'..'\n'	-- remove blank newlines
+
+	-- TODO
+	-- 4) run again, this time collecting macros, subtract out builtin, and use the rest as macros for this file.
+	--		NOTICE that means we will get in the .h file any macros defined by its included files.  
+	-- 		With my preprocessor I was able to strip these out based on where they were defined.  can GCC give me this info?
+	-- * output the macros as `enum { k = v };`
+
+	code = [=[
+local ffi = require 'ffi'
+ffi.cdef[[
+]=]..code..[=[
+]]
+]=]
+path'~before-final.h':write(code)
+
+	-- if there's a final-pass on the code then do it
+	-- TODO inc.final() before lua code wrapping?
+	-- or make lua code wrapping part of a default inc.final?
+	if inc.final then
+		code = inc.final(code, preproc)
+		assert.type(code, 'string', "expected final() to return a string")
+	end
+
+	return code
+end
+
+return preprocessWithCompiler
+--return preprocessWithLuaPreprocessor
