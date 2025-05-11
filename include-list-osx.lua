@@ -12,7 +12,8 @@ local function removeAttrAvailability(code)
 		:gsub('%s*\n%s*\n', '\n')
 end
 
-return table{
+return table(require 'include-list-osx-internal')
+:append{
 
 --[====[ BEGIN INTERNALLY REQUESTED
 -- They only exist to replace duplicate-generated ctypes
@@ -74,42 +75,6 @@ return table{
 	end},
 
 --]====] -- END INTERNALLY REQUESTED
-
-	-- used by <time.h> <string.h> 
-	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
-
-	-- used by <_types.h> <machine/types.h>
-	{inc='<i386/_types.h>', out='OSX/c/i386/_types.lua'},
-
-	-- used by <_types.h> <machine/types.h>
-	{inc='<sys/cdefs.h>', out='OSX/c/sys/cdefs.lua'},
-	
-	-- used by <_types.h> <machine/types.h>
-	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
-
-	-- used by <sys/signal.h> <_types.h>
-	{inc='<sys/_types.h>', out='OSX/sys/_types.lua'},
-
-	-- used by <time.h> <string.h> 
-	{inc='<_types.h>', out='OSX/c/_types.lua'},
-
-	-- used by <time.h> <string.h> 
-	{inc='<machine/types.h>', out='OSX/c/machine/types.lua'},
-	
-	-- used by <time.h> <string.h>
-	{inc='<sys/_types/_size_t.h>', out='OSX/sys/_types/_size_t.lua'},
-
-	-- used by <errno.h> <string.h>
-	{inc='<sys/_types/_errno_t.h>', out='OSX/sys/_types/_errno_t.lua'},
-
-	-- used by <stdio.h> <string.h>
-	{inc='<sys/_types/_ssize_t.h>', out='OSX/sys/_types/_ssize_t.lua'},
-
-	-- used by <stdlib.h> <sys/signal.h>
-	{inc='<sys/_types/_pid_t.h>', out='OSX/sys/_types/_pid_t.lua'},
-
-	-- used by <signal.h> <stdlib.h>
-	{inc='<sys/signal.h>', out='OSX/sys/signal.lua'},
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
