@@ -126,6 +126,7 @@ function ThisPreproc:getDefineCode(k, v, l)
 --		return '/* '..l..' ### '..tolua(v, {indent=false})..' */'
 	end
 
+--DEBUG(ThisPreproc:getDefineCode):do return '/* '..l..' ### '..tolua(v, {indent=false})..' */' end
 	return ''
 end
 
@@ -473,7 +474,6 @@ return function(inc)
 ]]
 	end
 
-
 	-- where I keep my glext.h and khr/khrplatform.h
 	-- TODO move this into gl.sh?
 	preproc:addIncludeDir(os.home()..'/include', ffi.os == 'Windows')
@@ -530,6 +530,8 @@ return function(inc)
 		-- treat it like we do #pragma once files
 		preproc.alreadyIncludedFiles[fn] = true
 	end
+
+--DEBUG:print('starting preprocessor with initial macros:', tolua(preproc.macros))
 
 	-- include these files but don't output the results
 	for _,fn in ipairs(inc.silentincs or {}) do

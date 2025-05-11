@@ -1,6 +1,16 @@
 local table = require 'ext.table'
 
 return table{
+
+--[====[ BEGIN INTERNALLY REQUESTED
+-- They only exist to replace duplicate-generated ctypes
+-- This process of duplication-detection can be automated:
+-- 1) generate a binding file
+-- 2) search through all previous generated binding files, search the pair of the new file + old file for like included files
+-- 2b) if a like included file is found, then add that to our internally-requested list.
+-- 2c) build a DAG while you go, keep them in order.
+-- 3) once you're finished, any stored internally-requested files not requested this time around should be reported (out with the old).
+
 	{inc='<AvailabilityVersions.h>', out='OSX/c/AvailabilityVersions.lua'},
 
 	-- depends on <AvailabilityVersions.h>
@@ -57,7 +67,7 @@ return table{
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<sys/termios.h>', out='OSX/c/sys/termios.lua'},
 
-	-- in list: Linux (internal include file)
+	-- in list: OSX (internal include file)
 	{inc='<sys/syslimits.h>', out='OSX/c/sys/syslimits.lua'},
 
 	-- depends on <sys/syslimits.h> <machine/_types.h>
@@ -65,6 +75,8 @@ return table{
 		code = fixEnumsAndDefineMacrosInterleaved(code)
 		return code
 	end},
+
+--]====] -- END INTERNALLY REQUESTED
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
