@@ -595,6 +595,80 @@ local function preprocessWithCompiler(inc)
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 
+
+
+	-- also in make.lua
+	local outdir = path'results/ffi'
+
+	-- TODO you can do this during the first pass
+	local prevIncludeInfos = {}
+
+	local function parseIncludeBeginComment(l, l2)
+		-- the same file will only have 1 +, so 
+		-- match 2 or more +'s
+		local includeInfo = l:match'^/%* %+%++ BEGIN (.*) %*/$'
+		if includeInfo then
+			local isEmpty = l2 and l2:match('^/%* %++ END '..string.patescape(includeInfo)..' %*/$')
+			if not isEmpty then
+				-- this is the search and the includePath
+				-- match both? or just the 2nd?
+				-- match 2nd and complain if 2nd matches but both don't match
+				local search = includeInfo:match'^(<[^>]*>)'
+					or includeInfo:match'^(".-[^\\]")'
+					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
+				local includePath = includeInfo:sub(#search+2)
+				return search, includePath
+			end
+		end
+	end
+
+	local function checkIncludeComments(fp)
+		local data = fp:read()
+		local lines = string.split(assert(fp:read()), '\n')
+		for i,l in ipairs(lines) do
+			local search, includePath = parseIncludeBeginComment(l, lines[i+1])
+			if search then
+				local prevIncInfo = prevIncludeInfos[includePath]
+				local newIncInfo = {
+					search = search,
+					lua = fp,
+					line = i,
+				}
+				if prevIncInfo then
+					if prevIncInfo.lua == fp then
+						print('1st:', tolua(newIncInfo))
+						print('2nd:', tolua(prevIncInfo))
+						error"somehow we included the same path twice!"
+					end
+					print("found redundant include file!!!!")
+					print(search..' '..includePath)
+					print('1st:', newIncInfo.lua..':'..newIncInfo.line)
+					print('2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
+					assert.eq(search, prevIncInfo.search, "and their #include arguments don't match!")
+					error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
+				end
+				prevIncludeInfos[includePath] = newIncInfo
+			end
+		end
+	end
+
+	-- collect #include's and make sure they are unique as we go ...
+	-- FOR EVERY SINGLE FILE, THAT'S O(N^2)
+	-- how about doing this as we go too?
+	-- but that'd screw up for one-off files...
+	local incIndex = assert(includeList:find(inc))
+	for i=1,incIndex-1 do
+		local pinc = includeList[i]
+		local fp = outdir(pinc.out)
+		if not fp:exists() then
+			print('!!! '..fp.." doesn't exist - can't compare like include trees")
+		else
+			checkIncludeComments(fp)
+		end
+	end
+
+
+
 	local luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
 	local luaIncMacroFiles = table(luaBindingIncFiles):append(inc.macroincs)
 
@@ -813,89 +887,14 @@ path'~before-final.h':write(code)
 	-- now for all previously included files ...
 	-- search that file output and search this file output and see if there are any common include subsets
 	-- NOTICE this is a job for make.lua sort of
-	do
-		-- also in make.lua
-		local outdir = path'results/ffi'
+	do	
+		-- WRITE CODE HERE - BEFORE CHECKING DUPLICATE INCLUDE TREES
+		-- that means we're writing it twice
+		-- TODO move the write out of make.lua
+		local fp = outdir(inc.out)
+		fp:write(code)
 
-		local function parseIncludeBeginComment(l, l2)
-			-- the same file will only have 1 +, so 
-			-- match 2 or more +'s
-			local includeInfo = l:match'^/%* %+%++ BEGIN (.*) %*/$'
-			if includeInfo then
-				local isEmpty = l2 and l2:match('^/%* %++ END '..string.patescape(includeInfo)..' %*/$')
-				if not isEmpty then
-					-- this is the search and the includePath
-					-- match both? or just the 2nd?
-					-- match 2nd and complain if 2nd matches but both don't match
-					local search = includeInfo:match'^(<[^>]*>)'
-						or includeInfo:match'^(".-[^\\]")'
-						or error("couldn't pick out <> or \"\" argument from #include command: "..l)
-					local includePath = includeInfo:sub(#search+2)
-					return search, includePath
-				end
-			end
-		end
-		local lines = string.split(code, '\n')
-		-- TODO you can do this during the first pass
-		local prevIncludeInfos = {}
-		for i,l in ipairs(lines) do
-			local search, includePath = parseIncludeBeginComment(l, lines[i+1])
-			if search then
-				local prevIncInfo = prevIncludeInfos[includePath]
-				local newIncInfo = {
-					search = search,
-					lua = outdir/inc.out,
-					line = i,
-				}
-				-- hmmmmm
-				-- if it's in the same lua file and included twice
-				-- then often the included-file's own #ifdef / #pragma-once will kick in
-				-- and the 2nd one will be empty
-				-- TODO check for empty ones?
-				if prevIncInfo then
-					print('1st:', tolua(newIncInfo))
-					print('2nd:', tolua(prevIncInfo))
-					error"somehow we included the same path twice!"
-				end
-				prevIncludeInfos[includePath] = newIncInfo
-			end
-		end
-
-		local incIndex = assert(includeList:find(inc))
-		for i=1,incIndex-1 do
-			local pinc = includeList[i]
-			local prevfn = outdir(pinc.out)
-			if not prevfn:exists() then
-				print('!!! '..prevfn.." doesn't exist - can't compare like include trees")
-			else
-				local cmplines = string.split(assert(prevfn:read()), '\n')
-				for i,l in ipairs(cmplines) do
-					local search, includePath = parseIncludeBeginComment(l, cmplines[i+1])
-					if search then
-						local prevIncInfo = prevIncludeInfos[includePath]
-						local newIncInfo = {
-							search = search,
-							lua = prevfn,
-							line = i,
-						}
-						if prevIncInfo then
-							if prevIncInfo.lua == prevfn then
-								print('1st:', tolua(newIncInfo))
-								print('2nd:', tolua(prevIncInfo))
-								error"somehow we included the same path twice!"
-							end
-							print("found redundant include file!!!!")
-							print(search..' '..includePath)
-							print('1st:', newIncInfo.lua..':'..newIncInfo.line)
-							print('2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
-							assert.eq(search, prevIncInfo.search, "and their #include arguments don't match!")
-							error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
-						end
-						prevIncludeInfos[includePath] = newIncInfo
-					end
-				end
-			end
-		end
+		checkIncludeComments(fp)
 	end
 
 	return code
