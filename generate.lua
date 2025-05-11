@@ -454,19 +454,22 @@ return function(inc)
 
 		-- how to handle gcc extension macros?
 		preproc[[
-#define __has_feature(x)		0
-#define __building_module(x)	0
-#define __has_extension(x)		0
-#define __has_attribute(x)		0
-#define __has_cpp_attribute(x)	0
-#define __has_c_attribute(x)	0
-#define __has_builtin(x)		0
-#define __has_include(x)		0
-#define __has_warning(x)		0
-#define __asm__(x)
+#define __has_feature(x)			0
+#define __building_module(x)		0
+#define __has_extension(x)			0
+#define __has_attribute(x)			0
+#define __has_cpp_attribute(x)		0
+#define __has_c_attribute(x)		0
+#define __has_builtin(x)			0
+#define __has_include(x)			0
+#define __has_warning(x)			0
+#define __asm(x)					// let the C preprocessor eliminate the __asm__ attributes
+#define __asm__(x)					// let the C preprocessor eliminate the __asm__ attributes
 #define __has_unique_object_representations(x) 0
-#define _GLIBCXX_HAS_BUILTIN(x)	0
+#define _GLIBCXX_HAS_BUILTIN(x)		0
 #define _Static_assert(a,b)		// this is in <sys/cdefs.h> ... why isn't it working in <SDL2/SDL.h> ?
+#define __is_target_os(x)			0		// clang-specific builtin
+#define __is_target_environment(x)	0
 ]]
 	end
 
