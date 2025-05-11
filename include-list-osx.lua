@@ -4,6 +4,7 @@ local string = require 'ext.string'
 local util = require 'util'
 local safegsub = util.safegsub
 local removeEnum = util.removeEnum
+local commentOutLine = util.commentOutLine
 local fixEnumsAndDefineMacrosInterleaved = util.fixEnumsAndDefineMacrosInterleaved
 
 local function removeAttrAvailability(code)
@@ -14,7 +15,7 @@ end
 
 return table{
 
---[====[ BEGIN INTERNALLY REQUESTED
+-- [====[ BEGIN INTERNALLY REQUESTED
 -- They only exist to replace duplicate-generated ctypes
 -- This process of duplication-detection can be automated:
 -- 1) generate a binding file
@@ -23,79 +24,48 @@ return table{
 -- 2c) build a DAG while you go, keep them in order.
 -- 3) once you're finished, any stored internally-requested files not requested this time around should be reported (out with the old).
 
-	{inc='<AvailabilityVersions.h>', out='OSX/c/AvailabilityVersions.lua'},
-
-	-- depends on <AvailabilityVersions.h>
-	-- ... SDL.h on OSX separately includes AvailabilityMacros.h without Availability.h
-	-- ... and both Availability.h and AvailabilityMacros.h points to AvailabilityVersions.h
-	-- (so maybe I could avoid this one file and just let its contents embed into sdl.lua ...)
-	{inc='<AvailabilityMacros.h>', out='OSX/c/AvailabilityMacros.lua'},
-
-	{inc='<machine/endian.h>', out='OSX/c/machine/endian.lua'},
-
-	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/c/sys/_pthread/_pthread_types.lua'},
-
-	{inc='<sys/_types/_seek_set.h>', out='OSX/c/sys/_types/_seek_set.lua'},
-
-	{inc='<sys/_types/_timespec.h>', out='OSX/c/sys/_types/_timespec.lua'},
-
-	-- depends on <machine/_types.h>
-	{inc='<sys/_types/_timeval.h>', out='OSX/c/sys/_types/_timeval.lua'},
-
-	{inc='<sys/_types/_fd_def.h>', out='OSX/c/sys/_types/_fd_def.lua'},
-
-	{inc='<sys/_types/_fd_setsize.h>', out='OSX/c/sys/_types/_fd_setsize.lua'},
-
-	-- used by <sys/stat.h> and <fcntl.h>
-	{inc='<sys/_types/_s_ifmt.h>', out='OSX/c/sys/_types/_s_ifmt.lua'},
-
-	-- used by <sys/types.h>, <string.h>, <errno.h>
-	{inc='<sys/_types/_errno_t.h>', out='OSX/c/sys/_types/_errno_t.lua'},
-
-	-- depends on <sys/_types/_fd_def.h> <sys/_types/_timeval.h>
-	{inc='<sys/_select.h>', out='OSX/c/sys/_select.lua'},
-
-	-- TODO might end up adding sys/_types.h ...
-	-- it depends on machine/_types.h
-
-	-- depends on <_types.h> <machine/_types.h>
-	{inc='<sys/ioctl.h>', out='OSX/c/sys/ioctl.lua'},
-
-	-- depends on <_types.h> <machine/_types.h>
-	{inc='<sys/termios.h>', out='OSX/c/sys/termios.lua'},
-
-	-- in list: OSX (internal include file)
-	{inc='<sys/syslimits.h>', out='OSX/c/sys/syslimits.lua'},
-
-	-- depends on <sys/syslimits.h> <machine/_types.h>
-	{inc='<sys/param.h>', out='OSX/c/sys/param.lua', final=function(code)
-		code = fixEnumsAndDefineMacrosInterleaved(code)
-		return code
-	end},
-
---]====] -- END INTERNALLY REQUESTED
-
-	-- used by <time.h> <string.h> 
-	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
-
+	-- used by <time.h> <string.h>
+	{inc='<Availability.h>', out='OSX/Availability.lua'},
+	
 	-- used by <_types.h> <machine/types.h>
 	{inc='<i386/_types.h>', out='OSX/c/i386/_types.lua'},
 
 	-- used by <_types.h> <machine/types.h>
-	{inc='<sys/cdefs.h>', out='OSX/c/sys/cdefs.lua'},
-	
-	-- used by <_types.h> <machine/types.h>
-	{inc='<machine/_types.h>', out='OSX/c/machine/_types.lua'},
+	{inc='<sys/cdefs.h>', out='OSX/sys/cdefs.lua'},
+
+	-- used by <machine/types.h> <_types.h>
+	{inc='<machine/_types.h>', out='OSX/machine/_types.lua'},
+
+	-- used by <sys/_pthread/_pthread_attr_t.h> <sys/_types.h>
+	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/sys/_pthread/_pthread_types.lua'},
 
 	-- used by <sys/signal.h> <_types.h>
 	{inc='<sys/_types.h>', out='OSX/sys/_types.lua'},
 
-	-- used by <time.h> <string.h> 
-	{inc='<_types.h>', out='OSX/c/_types.lua'},
+	-- used by <time.h> <string.h>
+	{inc='<_types.h>', out='OSX/_types.lua'},
 
-	-- used by <time.h> <string.h> 
-	{inc='<machine/types.h>', out='OSX/c/machine/types.lua'},
-	
+	-- used by <stdint.h> <machine/types.h>
+	{inc='<sys/_types/_int8_t.h>', out='OSX/sys/_types/_int8_t.lua'},
+
+	-- used by <stdint.h> <machine/types.h>
+	{inc='<sys/_types/_int16_t.h>', out='OSX/sys/_types/_int16_t.lua'},
+
+	-- used by <stdint.h> <machine/types.h>
+	{inc='<sys/_types/_int32_t.h>', out='OSX/sys/_types/_int32_t.lua'},
+
+	-- used by <stdint.h> <machine/types.h>
+	{inc='<sys/_types/_int64_t.h>', out='OSX/sys/_types/_int64_t.lua'},
+
+	-- used by <stdint.h> <machine/types.h>
+	{inc='<sys/_types/_intptr_t.h>', out='OSX/sys/_types/_intptr_t.lua'},
+
+	-- used by <stdint.h> <machine/types.h>
+	{inc='<sys/_types/_uintptr_t.h>', out='OSX/sys/_types/_uintptr_t.lua'},
+
+	-- used by <time.h> <string.h>
+	{inc='<machine/types.h>', out='OSX/machine/types.lua'},
+
 	-- used by <time.h> <string.h>
 	{inc='<sys/_types/_size_t.h>', out='OSX/sys/_types/_size_t.lua'},
 
@@ -108,8 +78,143 @@ return table{
 	-- used by <stdlib.h> <sys/signal.h>
 	{inc='<sys/_types/_pid_t.h>', out='OSX/sys/_types/_pid_t.lua'},
 
+	-- used by <pthread.h> <sys/signal.h>
+	{inc='<sys/_pthread/_pthread_attr_t.h>', out='OSX/sys/_pthread/_pthread_attr_t.lua'},
+
+	-- used by <pthread.h> <sys/signal.h>
+	{inc='<sys/_types/_sigset_t.h>', out='OSX/sys/_types/_sigset_t.lua'},
+	
+	-- used by <unistd.h> <sys/signal.h>
+	{inc='<sys/_types/_uid_t.h>', out='OSX/sys/_types/_uid_t.lua'},
+
 	-- used by <signal.h> <stdlib.h>
 	{inc='<sys/signal.h>', out='OSX/sys/signal.lua'},
+
+	-- used by <wchar.h> <stdlib.h>
+	{inc='<sys/_types/_ct_rune_t.h>', out='OSX/sys/_types/_ct_rune_t.lua'},
+
+	-- used by <wchar.h> <stdlib.h>
+	{inc='<sys/_types/_rune_t.h>', out='OSX/sys/_types/_rune_t.lua'},
+
+	-- used by <wchar.h> <stdlib.h>
+	{inc='<sys/_types/_wchar_t.h>', out='OSX/sys/_types/_wchar_t.lua'},
+
+	-- used by <stdint.h> <stdlib.h>
+	{inc='<_types/_uint8_t.h>', out='OSX/_types/_uint8_t.lua'},
+
+	-- used by <stdint.h> <stdlib.h>
+	{inc='<_types/_uint16_t.h>', out='OSX/_types/_uint16_t.lua'},
+
+	-- used by <stdint.h> <stdlib.h>
+	{inc='<_types/_uint32_t.h>', out='OSX/_types/_uint32_t.lua'},
+
+	-- used by <stdint.h> <stdlib.h>
+	{inc='<_types/_uint64_t.h>', out='OSX/_types/_uint64_t.lua'},
+
+	-- used by <stdint.h> <stdlib.h>
+	{inc='<_types/_intmax_t.h>', out='OSX/_types/_intmax_t.lua'},
+
+	-- used by <stdint.h> <stdlib.h>
+	{inc='<_types/_uintmax_t.h>', out='OSX/_types/_uintmax_t.lua'},
+
+	-- used by <fcntl.h> <stdlib.h>
+	{inc='<sys/_types/_mode_t.h>', out='OSX/sys/_types/_mode_t.lua'},
+
+	-- used by <fcntl.h> <stdio.h>
+	{inc='<sys/_types/_off_t.h>', out='OSX/sys/_types/_off_t.lua'},
+
+	-- used by <fcntl.h> <time.h>
+	{inc='<sys/_types/_timespec.h>', out='OSX/sys/_types/_timespec.lua'},
+
+	-- used by <unistd.h> <stdio.h>
+	{inc='<_ctermid.h>', out='OSX/_ctermid.lua'},
+
+	-- used by <unistd.h> <stdlib.h>
+	{inc='<sys/_types/_timeval.h>', out='OSX/sys/_types/_timeval.lua'},
+
+	-- used by <unistd.h> <time.h>
+	{inc='<sys/_types/_time_t.h>', out='OSX/sys/_types/_time_t.lua'},
+
+	-- used by <unistd.h> <stdlib.h>
+	{inc='<sys/_types/_dev_t.h>', out='OSX/sys/_types/_dev_t.lua'},
+
+	-- used by <sys/select.h> <unistd.h>
+	{inc='<sys/_types/_fd_def.h>', out='OSX/sys/_types/_fd_def.lua'},
+
+	-- used by <sys/select.h> <unistd.h>
+	{inc='<sys/_types/_suseconds_t.h>', out='OSX/sys/_types/_suseconds_t.lua'},
+
+	-- used by <sys/select.h> <unistd.h>
+	{inc='<sys/_select.h>', out='OSX/sys/_select.lua'},
+
+	-- used by <sys/stat.h> <dirent.h>
+	{inc='<sys/_types/_ino_t.h>', out='OSX/sys/_types/_ino_t.lua'},
+
+	-- used by <sys/stat.h> <unistd.h>
+	{inc='<sys/_types/_gid_t.h>', out='OSX/sys/_types/_gid_t.lua'},
+
+	-- used by <sys/stat.h> <fcntl.h>
+	{inc='<sys/_types/_filesec_t.h>', out='OSX/sys/_types/_filesec_t.lua'},
+
+	-- used by <sys/types.h> <stdlib.h>
+	{inc='<machine/endian.h>', out='OSX/machine/endian.lua'},
+
+	-- used by <sys/types.h> <sys/stat.h>
+	{inc='<sys/_types/_blkcnt_t.h>', out='OSX/sys/_types/_blkcnt_t.lua'},
+
+	-- used by <sys/types.h> <sys/stat.h>
+	{inc='<sys/_types/_blksize_t.h>', out='OSX/sys/_types/_blksize_t.lua'},
+
+	-- used by <sys/types.h> <sys/stat.h>
+	{inc='<sys/_types/_ino64_t.h>', out='OSX/sys/_types/_ino64_t.lua'},
+
+	-- used by <sys/types.h> <sys/stat.h>
+	{inc='<sys/_types/_nlink_t.h>', out='OSX/sys/_types/_nlink_t.lua'},
+
+	-- used by <sys/types.h> <stdlib.h>
+	{inc='<sys/_types/_id_t.h>', out='OSX/sys/_types/_id_t.lua'},
+
+	-- used by <sys/types.h> <time.h>
+	{inc='<sys/_types/_clock_t.h>', out='OSX/sys/_types/_clock_t.lua'},
+
+	-- used by <sys/types.h> <unistd.h>
+	{inc='<sys/_types/_useconds_t.h>', out='OSX/sys/_types/_useconds_t.lua'},
+
+	-- used by <sys/types.h> <string.h>
+	{inc='<sys/_types/_rsize_t.h>', out='OSX/sys/_types/_rsize_t.lua'},
+
+	-- used by <pthread.h> <signal.h>
+	{inc='<sys/_pthread/_pthread_t.h>', out='OSX/sys/_pthread/_pthread_t.lua'},
+
+	-- used by <sched.h> <pthread.h>
+	{inc='<pthread/pthread_impl.h>', out='OSX/pthread/pthread_impl.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_cond_t.h>', out='OSX/sys/_pthread/_pthread_cond_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_condattr_t.h>', out='OSX/sys/_pthread/_pthread_condattr_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_mutex_t.h>', out='OSX/sys/_pthread/_pthread_mutex_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_mutexattr_t.h>', out='OSX/sys/_pthread/_pthread_mutexattr_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_once_t.h>', out='OSX/sys/_pthread/_pthread_once_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_rwlock_t.h>', out='OSX/sys/_pthread/_pthread_rwlock_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_rwlockattr_t.h>', out='OSX/sys/_pthread/_pthread_rwlockattr_t.lua'},
+
+	-- used by <sys/types.h> <pthread.h>
+	{inc='<sys/_pthread/_pthread_key_t.h>', out='OSX/sys/_pthread/_pthread_key_t.lua'},
+
+
+--]====] -- END INTERNALLY REQUESTED
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
@@ -119,11 +224,9 @@ return table{
 	{inc='<stddef.h>', out='OSX/c/stddef.lua'},
 
 	-- in list: Windows Linux OSX
-	-- depends on <_types.h> <machine/_types.h>
 	{inc='<string.h>', out='OSX/c/string.lua'},
 
 	-- in list: Windows Linux OSX
-	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
 	{
 		inc = '<time.h>',
 		out = 'OSX/c/time.lua',
@@ -134,7 +237,6 @@ return table{
 	},
 
 	-- in list: Windows Linux OSX
-	-- depends on <sys/_types/_errno_t.h>
 	{
 		inc = '<errno.h>',
 		out = 'OSX/c/errno.lua',
@@ -153,8 +255,12 @@ return setmetatable({
 		end,
 	},
 
+	-- ISO/IEC 9899:1999 (C99)
+	-- ... but it has to go above <stdlib.h>
 	-- in list: Windows Linux OSX
-	-- depends on <sys/signal.h>, <_types.h> <machine/_types.h> <machine/endian.h>
+	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
+
+	-- in list: Windows Linux OSX
 	{
 		inc = '<stdlib.h>',
 		out = 'OSX/c/stdlib.lua',
@@ -165,7 +271,6 @@ return setmetatable({
 	},
 
 	-- in list: Windows Linux OSX
-	-- depends on <sys/syslimits.h>
 	{inc='<limits.h>', out='OSX/c/limits.lua', final=function(code)
 		--[[ these ones are converting int64->double and failing
 		-- but i switched preprocessor methods to builtin gcc and now it's just not substituting at all ...
@@ -202,8 +307,6 @@ return wrapper
 	{inc='<stdarg.h>', out='OSX/c/stdarg.lua'},
 
 	-- in list: Windows Linux OSX
-	-- needs <sys/_pthread/_pthread_types.h>
-	-- depends on <machine/_types.h> <sys/_types/_seek_set.h>
 	{
 		inc = '<stdio.h>',
 		out = 'OSX/c/stdio.lua',
@@ -272,7 +375,6 @@ return wrapper
 	},
 
 	-- in list: Linux OSX
-	-- depends on <_types.h> <sys/signal.h>
 	{
 		inc = '<signal.h>',
 		out = 'OSX/c/signal.lua',
@@ -291,17 +393,13 @@ return wrapper
 		------------ ISO/IEC 9899:1999 (C99) ------------
 
 	-- in list: Windows Linux OSX
-	-- depends on <_types.h> <machine/_types.h>
-	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
-
-	-- in list: Windows Linux OSX
 	-- identical in windows linux osx ...
 	{
 		inc = '<stdbool.h>',
 		out = 'OSX/c/stdbool.lua',
 		final = function(code)
 			-- luajit has its own bools already defined
-			for _,k in ipairs{'bool = 0', 'true = 1', 'false = 0'} do
+			for _,k in ipairs{'true = 1', 'false = 0'} do
 				code = removeEnum(code, k)
 			end
 			return code
@@ -349,6 +447,7 @@ return wrapper
 		inc = '<pthread.h>',
 		out = 'OSX/c/pthread.lua',
 		final = function(code)
+			code = removeAttrAvailability(code)
 			code = fixEnumsAndDefineMacrosInterleaved(code)
 			return code
 		end,
@@ -357,22 +456,7 @@ return wrapper
 	-- in list: Linux OSX
 	{inc='<sched.h>', out='OSX/c/sched.lua'},
 
-	-- in list: Windows Linux OSX
-	-- depends: <features.h> <machine/_types.h> <sys/_types/_seek_set.h>
-	{
-		inc = '<unistd.h>',
-		out = 'OSX/c/unistd.lua',
-		final = function(code)
-			-- for interchangeability with Windows ...
-			code = code .. [[
-return ffi.C
-]]
-			return code
-		end,
-	},
-
 	-- in list: Linux OSX
-	-- depends on <_types.h>
 	{
 		inc = '<utime.h>',
 		out = 'OSX/c/utime.lua',
@@ -392,9 +476,22 @@ return setmetatable({
 	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua'},
 
 	-- in list: Linux OSX
-	-- depends on <_types.h> <sys/_types/_timespec.h> <sys/_types/_fd_def.h> <machine/_types.h>
+	-- has to go above <unistd.h>
 	{inc='<sys/select.h>', out='OSX/c/sys/select.lua'},
 
+	-- in list: Windows Linux OSX
+	{
+		inc = '<unistd.h>',
+		out = 'OSX/c/unistd.lua',
+		final = function(code)
+			-- for interchangeability with Windows ...
+			code = code .. [[
+return ffi.C
+]]
+			return code
+		end,
+	},
+	
 	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
 	-- in list: Windows Linux OSX
 	{

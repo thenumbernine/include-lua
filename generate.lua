@@ -603,6 +603,14 @@ local function preprocessWithCompiler(inc)
 	-- also in make.lua
 	local outdir = path'results/ffi'
 
+
+-- TODO TODO TODO 
+-- if I'm testing these one at a time
+-- then how about not running O(n^2) over them all to find duplicate include trees
+-- how about instead I generate each without trees
+-- then I run one single analysis that collects all duplicate trees
+
+
 	-- TODO you can do this during the first pass
 	local prevIncludeInfos = {}
 
@@ -631,6 +639,8 @@ local function preprocessWithCompiler(inc)
 	end
 
 	local function reportDups(newIncInfo, prevIncInfo, includePath)
+		if newIncInfo.search:match'%$include_next>$' then return end
+
 		print("!!!!! FOUND REDUNDANT INCLUDE FILE !!!!!")
 		print(newIncInfo.search..' '..includePath)
 		print('***** 1st:', newIncInfo.lua..':'..newIncInfo.line)
@@ -642,6 +652,7 @@ local function preprocessWithCompiler(inc)
 		print("\t{inc='"..newIncInfo.search.."', out='"..ffi.os..'/'..newIncInfo.search:sub(2,-2):gsub('%.h$', '.lua').."'},")
 		print()
 		print"TODO Automatically put in a request to generate this internal #include file and then re-run everything."
+		print"Or if one of those two dependencies is the same as the source then change your generation order."
 --[[
 TODO last step for full automation ...
 run the full list every time,
@@ -660,7 +671,7 @@ os.exit(1)
 	local function processIncludeBeginComment(pinc, fp, line, l, l2, skipOwnInc)
 		local plus, search, includePath = parseIncludeBeginComment(l, l2)
 		if not search then return end
-		if skipOwnInc and plus == '+' then return end
+--		if skipOwnInc and plus == '+' then return end
 		local prevIncInfo = prevIncludeInfos[includePath]
 		local newIncInfo = {
 			inc = pinc,
@@ -672,6 +683,7 @@ os.exit(1)
 			prevIncludeInfos[includePath] = newIncInfo
 			return
 		end
+
 		if prevIncInfo.lua == fp then
 			print('***** 1st:', tolua(newIncInfo))
 			print('***** 2nd:', tolua(prevIncInfo))
@@ -772,6 +784,7 @@ os.exit(1)
 
 	-- 3) transform to my format
 	local lastSearch
+	local lastSearchIncludeNext 
 	local incstack = table()	-- .path, .search
 	local macros = {}
 	local macrosInOrder = table()
@@ -782,7 +795,7 @@ os.exit(1)
 			if l == '' then
 				lines:remove(i)
 				i = i - 1
-			elseif l:find('^#define', 1) then
+			elseif l:find'^#define' then
 				local top = incstack:last()
 				if top.path == '<built-in>'
 				or top.path == '<command line>'
@@ -803,7 +816,7 @@ os.exit(1)
 				end
 				lines:remove(i)
 				i = i - 1
-			elseif l:find('^#undef', 1) then
+			elseif l:find'^#undef' then
 				local k = l:match'^#undef%s+([_%a][_%w]*)$'
 				macros[k] = nil
 				for j=#macrosInOrder,1,-1 do
@@ -813,25 +826,48 @@ os.exit(1)
 				end
 				lines:remove(i)
 				i = i - 1
-			elseif l:find('^#include', 1)
-			or l:find('^#include_next', 1)
+			elseif l:find'^#include'
+			or l:find'^#include_next'
 			then
 				-- -dI inserts the #include directive ...
 				-- ... and then a preprocessor markup for the current include file
 				-- ... and then a preprocessor markup for the included file.
 				-- so save this for our mapping from abs path to include directive
+				lastSearchIncludeNext = nil
 				local rest = l:match'^#include (.*)$'
-					or l:match'^#include_next (.*)$'
-					or error("couldn't pick out the #include argument from: "..l)
+				if not rest then
+					rest = l:match'^#include_next (.*)$'
+					lastSearchIncludeNext = true
+				end
+				if not rest then
+					error("couldn't pick out the #include argument from: "..l)
+				end
+				
 				lastSearch = rest:match'^(<[^>]*>)'
 					or rest:match'^(".-[^\\]")'
 					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
+				if lastSearchIncludeNext then
+					lastSearch = string.trim(lastSearch)
+					lastSearch = 
+						lastSearch:sub(1,1)
+						..lastSearch:sub(2,-2)..'$include_next'
+						..lastSearch:sub(-1)
+				end
 				lines:remove(i)
 				i = i - 1
-			elseif l:find('^#', 1) then
+			elseif l:find'^#pragma' then
+				-- keep it
+				if incstack:last().suppress then
+					lines:remove(i)
+					i = i - 1
+				end
+			elseif l:find'^#' then
 				-- handle preprocessor include results
 				-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
 				local lineno, includePath, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
+				if not lineno then
+					error("got unknown preprocessor output line: "..l)
+				end
 
 				includePath = includePath:match'^"(.*)"$':gsub('\\"', '"')
 
@@ -881,16 +917,16 @@ os.exit(1)
 									}
 
 									reportDups(newIncInfo, prevIncInfo, includePath)
-								end
-
-								lines:insert(i+1, "]] require 'ffi.req' '"
-									..previnc.out:match'^(.*)%.lua$':gsub('/', '.')
-									.."' ffi.cdef[["
+								else
+									lines:insert(i+1, "]] require 'ffi.req' '"
+										..previnc.out:match'^(.*)%.lua$':gsub('/', '.')
+										.."' ffi.cdef[["
 --..'\n...from: '..tolua(prevIncInfo)
-								)
-								i = i + 1
+									)
+									i = i + 1
+									incstack:last().suppress  = true
+								end
 							end
-							incstack:last().suppress  = true
 						end
 					end
 				elseif flags[2] then

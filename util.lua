@@ -184,5 +184,6 @@ end
 return {
 	safegsub = safegsub,
 	removeEnum = removeEnum,
+	commentOutLine = commentOutLine,
 	fixEnumsAndDefineMacrosInterleaved = fixEnumsAndDefineMacrosInterleaved,
 }
