@@ -18,9 +18,14 @@ To generate all binding files for your current OS:
 ./make.lua all
 ```
 
-To generate all starting at a specific point:
+To generate all starting at a specific point in the include list:
 ```
 ./make.lua 'start=<jpeglib.h>'
+```
+
+To generate all stopping at a specific point in the include list:
+```
+./make.lua 'stop=<jpeglib.h>'
 ```
 
 To generate a single binding file:

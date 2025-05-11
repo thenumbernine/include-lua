@@ -1,3 +1,6 @@
+local util = require 'util'
+local fixEnumsAndDefineMacrosInterleaved = util.fixEnumsAndDefineMacrosInterleaved
+
 local table = require 'ext.table'
 
 return table{
@@ -34,9 +37,6 @@ return table{
 	{inc='<machine/endian.h>', out='OSX/c/machine/endian.lua'},
 
 	{inc='<sys/_pthread/_pthread_types.h>', out='OSX/c/sys/_pthread/_pthread_types.lua'},
-
-	-- depends on <sys/_pthread/_pthread_types.h> <machine/_types.h>
-	{inc='<_types.h>', out='OSX/c/_types.lua'},
 
 	{inc='<sys/_types/_seek_set.h>', out='OSX/c/sys/_types/_seek_set.lua'},
 
@@ -77,6 +77,8 @@ return table{
 	end},
 
 --]====] -- END INTERNALLY REQUESTED
+
+	{inc='<_types.h>', out='OSX/c/_types.lua'},
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 

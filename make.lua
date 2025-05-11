@@ -12,15 +12,22 @@ if start then
 	for i=assert(includeList:find(nil, function(inc) return inc.inc == start end), "couldn't find starting point: "..start)-1,1,-1 do
 		includeList:remove(i)
 	end
-elseif req ~= 'all' then
-	-- TODO seems using <> or "" now is essential for excluding recursive require's
-	if req:sub(1,1) ~= '<' and req:sub(1,1) ~= '"' then
-		error('must be system (<...>) or user ("...") include space')
-	end
-	print('searching for '..req)
-	includeList = includeList:filter(function(inc) return inc.inc == req end)
-	if #includeList == 0 then
-		error("couldn't find "..req)
+else
+	local stop = req:match'^stop=(.*)$'
+	if stop then
+		for i=assert(includeList:find(nil, function(inc) return inc.inc == stop end), "couldn't find starting point: "..stop)+1,#includeList do
+			includeList[i] = nil
+		end
+	elseif req ~= 'all' then
+		-- TODO seems using <> or "" now is essential for excluding recursive require's
+		if req:sub(1,1) ~= '<' and req:sub(1,1) ~= '"' then
+			error('must be system (<...>) or user ("...") include space')
+		end
+		print('searching for '..req)
+		includeList = includeList:filter(function(inc) return inc.inc == req end)
+		if #includeList == 0 then
+			error("couldn't find "..req)
+		end
 	end
 end
 

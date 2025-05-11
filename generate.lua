@@ -600,15 +600,15 @@ local function preprocessWithCompiler(inc)
 
 	-- for all the includes we want to keep macros for, get a mapping from the include directive to the absolute path
 	-- this way we can find the path in the preprocessor output
-	local includeForPath = {}
-	for _,includeArg in ipairs(luaIncMacroFiles) do
+	local searchForPath = {}
+	for _,search in ipairs(luaIncMacroFiles) do
 		-- TODO best way to get include lookup
 		-- This outputs the include graph ... but all I need is the first result.
-		local out = io.readproc("echo '#include "..includeArg.."' | (gcc -H -MM -E - 2>&1)")
+		local out = io.readproc("echo '#include "..search.."' | (gcc -H -MM -E - 2>&1)")
 		local lines = string.split(out, '\n')
 		local line = lines[1]
 		assert(line:match'^%. ')
-		includeForPath[line:sub(3)] = includeArg
+		searchForPath[line:sub(3)] = search
 	end
 
 	-- 2) run preprocessor on source file
@@ -651,8 +651,8 @@ local function preprocessWithCompiler(inc)
 	local lines = string.split(string.trim(code), '\n')
 
 	-- 3) transform to my format
-	local lastIncludeArg
-	local incstack = table()
+	local lastSearch
+	local incstack = table()	-- .path, .search
 	local macros = {}
 	local macrosInOrder = table()
 	do
@@ -664,10 +664,10 @@ local function preprocessWithCompiler(inc)
 				i = i - 1
 			elseif l:find('^#define', 1) then
 				local top = incstack:last()
-				if top == '<built-in>'
-				or top == '<command line>'
+				if top.path == '<built-in>'
+				or top.path == '<command line>'
 				-- TODO
-				or not luaIncMacroFiles:find(includeForPath[top])
+				or not luaIncMacroFiles:find(searchForPath[top.path])
 				then
 					-- don't save builtins
 					-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
@@ -699,7 +699,7 @@ local function preprocessWithCompiler(inc)
 				-- ... and then a preprocessor markup for the included file.
 				-- so save this for our mapping from abs path to include directive
 				local rest = l:match'^#include (.*)$'
-				lastIncludeArg = rest:match'^(<[^>]*>)'
+				lastSearch = rest:match'^(<[^>]*>)'
 					or rest:match'^(".-[^\\]")'
 					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
 				lines:remove(i)
@@ -717,27 +717,30 @@ local function preprocessWithCompiler(inc)
 				end):setmetatable(nil)
 				if flags[1] then
 					-- begin file
-					incstack:insert(filename)
+					incstack:insert{
+						path = filename,
+						search = lastSearch,
+					}
 					if filename == '<built-in>'
 					or filename == '<command line>'
 					then
 						lines:remove(i)
 						i = i - 1
 					else
-						includeForPath[filename] = lastIncludeArg
-						lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastIncludeArg..' '..filename..' */'
+						searchForPath[filename] = lastSearch
+						lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..filename..' */'
 					end
 				elseif flags[2] then
 					-- returning *to* a file (so the last file on the stack is now closed)
 					local top = incstack:last()
-					if top == '<built-in>'
-					or top == '<command line>'
+					if top.path == '<built-in>'
+					or top.path == '<command line>'
 					then
 						lines:remove(i)
 						i = i - 1
 					else
-						local incArg = includeForPath[top]
-						lines[i] = '/* '..('+'):rep(#incstack)..' END '..incArg..' '..top..' */'
+						local search = searchForPath[top.path]
+						lines[i] = '/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */'
 					end
 					incstack:remove()
 				else
@@ -815,18 +818,20 @@ path'~before-final.h':write(code)
 		local outdir = path'results/ffi'
 
 		local function parseIncludeBeginComment(l, l2)
-			local includeInfo = l:match'^/%* %++ BEGIN (.*) %*/$'
+			-- the same file will only have 1 +, so 
+			-- match 2 or more +'s
+			local includeInfo = l:match'^/%* %+%++ BEGIN (.*) %*/$'
 			if includeInfo then
 				local isEmpty = l2 and l2:match('^/%* %++ END '..string.patescape(includeInfo)..' %*/$')
 				if not isEmpty then
-					-- this is the includeArg and the includePath
+					-- this is the search and the includePath
 					-- match both? or just the 2nd?
 					-- match 2nd and complain if 2nd matches but both don't match
-					local includeArg = includeInfo:match'^(<[^>]*>)'
+					local search = includeInfo:match'^(<[^>]*>)'
 						or includeInfo:match'^(".-[^\\]")'
 						or error("couldn't pick out <> or \"\" argument from #include command: "..l)
-					local includePath = includeInfo:sub(#includeArg+2)
-					return includeArg, includePath
+					local includePath = includeInfo:sub(#search+2)
+					return search, includePath
 				end
 			end
 		end
@@ -834,12 +839,12 @@ path'~before-final.h':write(code)
 		-- TODO you can do this during the first pass
 		local prevIncludeInfos = {}
 		for i,l in ipairs(lines) do
-			local includeArg, includePath = parseIncludeBeginComment(l, lines[i+1])
-			if includeArg then
+			local search, includePath = parseIncludeBeginComment(l, lines[i+1])
+			if search then
 				local prevIncInfo = prevIncludeInfos[includePath]
 				local newIncInfo = {
-					includeArg = includeArg,
-					filename = outdir/inc.out,
+					search = search,
+					lua = outdir/inc.out,
 					line = i,
 				}
 				-- hmmmmm
@@ -848,8 +853,8 @@ path'~before-final.h':write(code)
 				-- and the 2nd one will be empty
 				-- TODO check for empty ones?
 				if prevIncInfo then
-					print('1st:', tolua(prevIncInfo))
-					print('2nd:', tolua(newIncInfo))
+					print('1st:', tolua(newIncInfo))
+					print('2nd:', tolua(prevIncInfo))
 					error"somehow we included the same path twice!"
 				end
 				prevIncludeInfos[includePath] = newIncInfo
@@ -862,30 +867,32 @@ path'~before-final.h':write(code)
 			local prevfn = outdir(pinc.out)
 			if not prevfn:exists() then
 				print('!!! '..prevfn.." doesn't exist - can't compare like include trees")
-			end
-			local cmplines = string.split(assert(prevfn:read()), '\n')
-			for i,l in ipairs(cmplines) do
-				local includeArg, includePath = parseIncludeBeginComment(l, cmplines[i+1])
-				if includeArg then
-					local prevIncInfo = prevIncludeInfos[includePath]
-					local newIncInfo = {
-						includeArg = includeArg,
-						filename = prevfn,
-						line = i,
-					}
-					if prevIncInfo then
-						if prevIncInfo.filename == prevfn then
-							print('1st:', tolua(prevIncInfo))
-							print('2nd:', tolua(newIncInfo))
-							error"somehow we included the same path twice!"
+			else
+				local cmplines = string.split(assert(prevfn:read()), '\n')
+				for i,l in ipairs(cmplines) do
+					local search, includePath = parseIncludeBeginComment(l, cmplines[i+1])
+					if search then
+						local prevIncInfo = prevIncludeInfos[includePath]
+						local newIncInfo = {
+							search = search,
+							lua = prevfn,
+							line = i,
+						}
+						if prevIncInfo then
+							if prevIncInfo.lua == prevfn then
+								print('1st:', tolua(newIncInfo))
+								print('2nd:', tolua(prevIncInfo))
+								error"somehow we included the same path twice!"
+							end
+							print("found redundant include file!!!!")
+							print(search..' '..includePath)
+							print('1st:', newIncInfo.lua..':'..newIncInfo.line)
+							print('2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
+							assert.eq(search, prevIncInfo.search, "and their #include arguments don't match!")
+							error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
 						end
-						print("found redundant include file!!!!")
-						print(" 1st is in "..prevfn)
-						print(" 2nd is in "..prevIncInfo.filename)
-						assert.eq(includeArg, prevIncInfo.includeArg, "and their #include arguments don't match!")
-						error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
+						prevIncludeInfos[includePath] = newIncInfo
 					end
-					prevIncludeInfos[includePath] = newIncInfo
 				end
 			end
 		end
