@@ -51,28 +51,32 @@ return table{
 	-- TODO might end up adding sys/_types.h ...
 	-- it depends on machine/_types.h
 
-	-- ISO/IEC 9899:1990 (C89, C90)
-	-- in list: Windows Linux OSX
-	{inc='<stddef.h>', out='OSX/c/stddef.lua'},
-
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<sys/ioctl.h>', out='OSX/c/sys/ioctl.lua'},
-
-	-- depends on <_types.h> <sys/_types/_timespec.h> <sys/_types/_fd_def.h> <machine/_types.h>
-	{inc='<sys/select.h>', out='OSX/c/sys/select.lua'},
 
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<sys/termios.h>', out='OSX/c/sys/termios.lua'},
 
-	-- depends on <_types.h> <sys/_types/_fd_def.h> <machine/_types.h> <machine/endian.h>
-	{inc='<sys/types.h>', out='OSX/c/sys/types.lua'},
+	-- in list: Linux (internal include file)
+	{inc='<sys/syslimits.h>', out='OSX/c/sys/syslimits.lua'},
 
-	-- ISO/IEC 9899:1990 (C89, C90)
+	-- depends on <sys/syslimits.h> <machine/_types.h>
+	{inc='<sys/param.h>', out='OSX/c/sys/param.lua', final=function(code)
+		code = fixEnumsAndDefineMacrosInterleaved(code)
+		return code
+	end},
+
+	----------------------- ISO/POSIX STANDARDS: -----------------------
+
+		------------ ISO/IEC 9899:1990 (C89, C90) ------------
+
+	-- in list: Windows Linux OSX
+	{inc='<stddef.h>', out='OSX/c/stddef.lua'},
+
 	-- in list: Windows Linux OSX
 	-- depends on <_types.h> <machine/_types.h>
 	{inc='<string.h>', out='OSX/c/string.lua'},
 
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
 	{
@@ -84,7 +88,6 @@ return table{
 		end,
 	},
 
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	-- depends on <sys/_types/_errno_t.h>
 	{
@@ -105,59 +108,6 @@ return setmetatable({
 		end,
 	},
 
-	-- depends on <_types.h>
-	{
-		inc = '<utime.h>',
-		out = 'OSX/c/utime.lua',
-		final = function(code)
-			code = code .. [[
-return setmetatable({
-	struct_utimbuf = 'struct utimbuf',
-}, {
-	__index = ffi.C,
-})
-]]
-			return code
-		end,
-	},
-
-	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
-	-- in list: Windows Linux OSX
-	{
-		inc = '<sys/stat.h>',
-		out = 'OSX/c/sys/stat.lua',
-		final = function(code)
-			code = code .. [[
-local lib = ffi.C
-local statlib = setmetatable({
-	struct_stat = 'struct stat',
-}, {
-	__index = lib,
-})
--- allow nils instead of errors if we access fields not present (for the sake of lfs_ffi)
-ffi.metatype(statlib.struct_stat, {
-	__index = function(t,k)
-		return nil
-	end,
-})
-return statlib
-]]
-			return code
-		end,
-	},
-
-	-- ISO/IEC 9899:1999 (C99)
-	-- in list: Windows Linux OSX
-	-- depends on <_types.h> <machine/_types.h>
-	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
-
-	-- depends on <machine/_types.h>
-	{
-		inc = '<sys/signal.h>',
-		out='OSX/c/sys/signal.lua',
-	},
-
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	-- depends on <sys/signal.h>, <_types.h> <machine/_types.h> <machine/endian.h>
 	{
@@ -174,10 +124,6 @@ return statlib
 		end,
 	},
 
-	-- in list: Linux (internal include file)
-	{inc='<sys/syslimits.h>', out='OSX/c/sys/syslimits.lua'},
-
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	-- depends on <sys/syslimits.h>
 	{inc='<limits.h>', out='OSX/c/limits.lua', final=function(code)
@@ -208,57 +154,12 @@ return wrapper
 		return code
 	end},
 
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	{inc='<setjmp.h>', out='OSX/c/setjmp.lua'},
 
-	-- depends: <features.h> <machine/_types.h> <sys/_types/_seek_set.h>
-	-- in list: Windows Linux OSX
-	{
-		inc = '<unistd.h>',
-		out = 'OSX/c/unistd.lua',
-		final = function(code)
-			-- for interchangeability with Windows ...
-			code = code .. [[
-return ffi.C
-]]
-			return code
-		end,
-	},
-
-	{inc='<sched.h>', out='OSX/c/sched.lua'},
-
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	{inc='<stdarg.h>', out='OSX/c/stdarg.lua'},
 
-	-- ISO/IEC 9899:1999 (C99)
-	-- in list: Windows Linux OSX
-	-- identical in windows linux osx ...
-	{
-		inc = '<stdbool.h>',
-		out = 'OSX/c/stdbool.lua',
-		final = function(code)
-			-- luajit has its own bools already defined
-			for _,k in ipairs{'bool = 0', 'true = 1', 'false = 0'} do
-				code = removeEnum(code, k)
-			end
-			return code
-		end,
-	},
-
-	-- ISO/IEC 9899:1999 (C99)
-	-- in list: Linux OSX
-	-- depends on <machine/_types.h>
-	{inc='<inttypes.h>', out='OSX/c/inttypes.lua'},
-
-	-- in list: Windows Linux OSX
-	{inc='<fcntl.h>', out='OSX/c/fcntl.lua'},
-
-	-- in list: Windows Linux OSX
-	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua'},
-
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Windows Linux OSX
 	-- needs <sys/_pthread/_pthread_types.h>
 	-- depends on <machine/_types.h> <sys/_types/_seek_set.h>
@@ -278,12 +179,6 @@ return setmetatable({}, {
 		end,
 	},
 
-	-- ISO/IEC 9899:1990/Amd.1:1995
-	-- in list: Windows Linux OSX
-	-- depends on <stdio.h> <machine/_types.h>
-	{inc='<wchar.h>', out='OSX/c/wchar.lua'},
-
-	-- ISO/IEC 9899:1990 (C89, C90)
 	-- in list: Linux OSX
 	{
 		inc = '<math.h>',
@@ -335,6 +230,62 @@ return wrapper
 		end,
 	},
 
+	-- in list: Linux OSX
+	-- depends on <_types.h> <sys/signal.h>
+	{
+		inc = '<signal.h>',
+		out = 'OSX/c/signal.lua',
+		final = function(code)
+			code = fixEnumsAndDefineMacrosInterleaved(code)
+			return code
+		end,
+	},
+
+		------------ ISO/IEC 9899:1990/Amd.1:1995 ------------
+
+	-- in list: Windows Linux OSX
+	-- depends on <stdio.h> <machine/_types.h>
+	{inc='<wchar.h>', out='OSX/c/wchar.lua'},
+
+		------------ ISO/IEC 9899:1999 (C99) ------------
+
+	-- in list: Windows Linux OSX
+	-- depends on <_types.h> <machine/_types.h>
+	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
+
+	-- in list: Windows Linux OSX
+	-- identical in windows linux osx ...
+	{
+		inc = '<stdbool.h>',
+		out = 'OSX/c/stdbool.lua',
+		final = function(code)
+			-- luajit has its own bools already defined
+			for _,k in ipairs{'bool = 0', 'true = 1', 'false = 0'} do
+				code = removeEnum(code, k)
+			end
+			return code
+		end,
+	},
+
+	-- in list: Linux OSX
+	-- depends on <machine/_types.h>
+	{inc='<inttypes.h>', out='OSX/c/inttypes.lua'},
+
+	-- in list: Windows Linux OSX
+	-- used by CBLAS
+	{
+		inc = '<complex.h>',
+		out = 'OSX/c/complex.lua',
+		enumGenUnderscoreMacros = true,
+		final = function(code)
+			code = commentOutLine(code, 'enum { complex = 0 };')
+			return code
+		end,
+	},
+
+		------------ ISO/IEC 9045:2008 (POSIX 2008, Single Unix Specification) ------------
+
+	-- in list: Linux OSX
 	-- depends on <_types.h>
 	{
 		inc = '<dirent.h>',
@@ -349,24 +300,86 @@ return wrapper
 		end,
 	},
 
-	-- ISO/IEC 9899:1990 (C89, C90)
+	-- in list: Windows Linux OSX
+	{inc='<fcntl.h>', out='OSX/c/fcntl.lua'},
+
 	-- in list: Linux OSX
-	-- depends on <_types.h> <sys/signal.h>
 	{
-		inc = '<signal.h>',
-		out = 'OSX/c/signal.lua',
+		inc = '<pthread.h>',
+		out = 'OSX/c/pthread.lua',
 		final = function(code)
 			code = fixEnumsAndDefineMacrosInterleaved(code)
 			return code
 		end,
 	},
 
-	-- depends on <sys/syslimits.h> <machine/_types.h>
-	{inc='<sys/param.h>', out='OSX/c/sys/param.lua', final=function(code)
-		code = fixEnumsAndDefineMacrosInterleaved(code)
-		return code
-	end},
+	-- in list: Linux OSX
+	{inc='<sched.h>', out='OSX/c/sched.lua'},
 
+	-- in list: Windows Linux OSX
+	-- depends: <features.h> <machine/_types.h> <sys/_types/_seek_set.h>
+	{
+		inc = '<unistd.h>',
+		out = 'OSX/c/unistd.lua',
+		final = function(code)
+			-- for interchangeability with Windows ...
+			code = code .. [[
+return ffi.C
+]]
+			return code
+		end,
+	},
+
+	-- in list: Linux OSX
+	-- depends on <_types.h>
+	{
+		inc = '<utime.h>',
+		out = 'OSX/c/utime.lua',
+		final = function(code)
+			code = code .. [[
+return setmetatable({
+	struct_utimbuf = 'struct utimbuf',
+}, {
+	__index = ffi.C,
+})
+]]
+			return code
+		end,
+	},
+
+	-- in list: Windows Linux OSX
+	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua'},
+
+	-- in list: Linux OSX
+	-- depends on <_types.h> <sys/_types/_timespec.h> <sys/_types/_fd_def.h> <machine/_types.h>
+	{inc='<sys/select.h>', out='OSX/c/sys/select.lua'},
+
+	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
+	-- in list: Windows Linux OSX
+	{
+		inc = '<sys/stat.h>',
+		out = 'OSX/c/sys/stat.lua',
+		final = function(code)
+			code = code .. [[
+local lib = ffi.C
+local statlib = setmetatable({
+	struct_stat = 'struct stat',
+}, {
+	__index = lib,
+})
+-- allow nils instead of errors if we access fields not present (for the sake of lfs_ffi)
+ffi.metatype(statlib.struct_stat, {
+	__index = function(t,k)
+		return nil
+	end,
+})
+return statlib
+]]
+			return code
+		end,
+	},
+
+	-- in list: Linux OSX
 	-- depends on <sys/_types/_timespec.h> <sys/_types/_fd_def.h> <machine/_types.h>
 	{
 		inc = '<sys/time.h>',
@@ -377,27 +390,12 @@ return wrapper
 		end,
 	},
 
-	-- ISO/IEC 9899:1999 (C99)
 	-- in list: Windows Linux OSX
-	-- used by CBLAS
-	{
-		inc = '<complex.h>',
-		out = 'OSX/c/complex.lua',
-		enumGenUnderscoreMacros = true,
-		final = function(code)
-			code = commentOutLine(code, 'enum { complex = 0 };')
-			return code
-		end,
-	},
+	-- depends on <_types.h> <sys/_types/_fd_def.h> <machine/_types.h> <machine/endian.h>
+	{inc='<sys/types.h>', out='OSX/c/sys/types.lua'},
 
-	{
-		inc = '<pthread.h>',
-		out = 'OSX/c/pthread.lua',
-		final = function(code)
-			code = fixEnumsAndDefineMacrosInterleaved(code)
-			return code
-		end,
-	},
+	----------------------- OS-SPECIFIC & EXTERNALLY REQUESTED BY 3RD PARTY LIBRARIES: -----------------------
+
 }:mapi(function(inc)
 	inc.os = 'OSX'
 	return inc
