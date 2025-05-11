@@ -592,6 +592,9 @@ So here's my attempt to just use gcc -E and transform the output into my preproc
 --]]
 local function preprocessWithCompiler(inc)
 
+	print()
+	print('GENERATING '..inc.out)
+	
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
 
@@ -622,33 +625,41 @@ local function preprocessWithCompiler(inc)
 		end
 	end
 
+	-- fp = current file path (used to report errors, not for file IO)
+	-- line = same
+	-- l = current line
+	-- l2 = optional next line for testing empty lines
+	local function processIncludeBeginComment(fp, line, l, l2)
+		local search, includePath = parseIncludeBeginComment(l, l2)
+		if not search then return end
+		local prevIncInfo = prevIncludeInfos[includePath]
+		local newIncInfo = {
+			search = search,
+			lua = fp,
+			line = line,
+		}
+		if not prevIncInfo then
+			prevIncludeInfos[includePath] = newIncInfo
+			return
+		end
+		if prevIncInfo.lua == fp then
+			print('1st:', tolua(newIncInfo))
+			print('2nd:', tolua(prevIncInfo))
+			error"somehow we included the same path twice!"
+		end
+		print("found redundant include file!!!!")
+		print(search..' '..includePath)
+		print('1st:', newIncInfo.lua..':'..newIncInfo.line)
+		print('2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
+		assert.eq(search, prevIncInfo.search, "and their #include arguments don't match!")
+		error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
+	end
+
 	local function checkIncludeComments(fp)
 		local data = fp:read()
 		local lines = string.split(assert(fp:read()), '\n')
 		for i,l in ipairs(lines) do
-			local search, includePath = parseIncludeBeginComment(l, lines[i+1])
-			if search then
-				local prevIncInfo = prevIncludeInfos[includePath]
-				local newIncInfo = {
-					search = search,
-					lua = fp,
-					line = i,
-				}
-				if prevIncInfo then
-					if prevIncInfo.lua == fp then
-						print('1st:', tolua(newIncInfo))
-						print('2nd:', tolua(prevIncInfo))
-						error"somehow we included the same path twice!"
-					end
-					print("found redundant include file!!!!")
-					print(search..' '..includePath)
-					print('1st:', newIncInfo.lua..':'..newIncInfo.line)
-					print('2nd:', prevIncInfo.lua..':'..prevIncInfo.line)
-					assert.eq(search, prevIncInfo.search, "and their #include arguments don't match!")
-					error"TODO automatically put in a request to generate this internal #include file and then re-run everything"
-				end
-				prevIncludeInfos[includePath] = newIncInfo
-			end
+			processIncludeBeginComment(fp, i, l, lines[i+1])
 		end
 	end
 
@@ -791,10 +802,12 @@ local function preprocessWithCompiler(inc)
 				end):setmetatable(nil)
 				if flags[1] then
 					-- begin file
-					incstack:insert{
+					local top = {
 						path = filename,
 						search = lastSearch,
+						suppress = (incstack:last() or {}).suppress,
 					}
+					incstack:insert(top)
 					if filename == '<built-in>'
 					or filename == '<command line>'
 					then
@@ -802,7 +815,24 @@ local function preprocessWithCompiler(inc)
 						i = i - 1
 					else
 						searchForPath[filename] = lastSearch
-						lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..filename..' */'
+						if incstack:last().suppress then
+							lines:remove(i)
+							i = i - 1
+						else
+							lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..filename..' */'
+						end
+
+						-- if the #include file has already been defined ...
+						-- then just insert it here
+						local incinfo = prevIncludeInfos[filename]
+						if incinfo and #incstack > 1 then	-- don't use ourselves
+							lines:insert(i+1, "]] require 'ffi.req' '"
+								..incinfo.lua.path:match'^(.*)%.lua$':gsub('/', '.')
+								.."' ffi.cdef[[")
+							i = i + 1
+print('suppressing', filename)							
+							incstack:last().suppress  = true
+						end
 					end
 				elseif flags[2] then
 					-- returning *to* a file (so the last file on the stack is now closed)
@@ -814,7 +844,12 @@ local function preprocessWithCompiler(inc)
 						i = i - 1
 					else
 						local search = searchForPath[top.path]
-						lines[i] = '/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */'
+						if incstack:last().suppress then
+							lines:remove(i)
+							i = i - 1
+						else
+							lines[i] = '/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */'
+						end
 					end
 					incstack:remove()
 				else
@@ -823,6 +858,10 @@ local function preprocessWithCompiler(inc)
 				end
 			else
 				-- regular line
+				if incstack:last().suppress then
+					lines:remove(i)
+					i = i - 1
+				end		
 			end
 			i = i + 1
 		end
@@ -883,7 +922,6 @@ path'~before-final.h':write(code)
 		assert.type(code, 'string', "expected final() to return a string")
 	end
 
-
 	-- now for all previously included files ...
 	-- search that file output and search this file output and see if there are any common include subsets
 	-- NOTICE this is a job for make.lua sort of
@@ -894,6 +932,8 @@ path'~before-final.h':write(code)
 		local fp = outdir(inc.out)
 		fp:write(code)
 
+		-- in fact, if I'm handling this in #include handling
+		-- then this will return nothing, right?
 		checkIncludeComments(fp)
 	end
 
