@@ -607,11 +607,16 @@ local function preprocessWithCompiler(inc)
 	local prevIncludeInfos = {}
 
 	local function parseIncludeBeginComment(l, l2)
-		-- the same file will only have 1 +, so 
-		-- match 2 or more +'s
-		local includeInfo = l:match'^/%* %+%++ BEGIN (.*) %*/$'
+		local plus, includeInfo = l:match'^/%* (%++) BEGIN (.*) %*/$'
 		if includeInfo then
-			local isEmpty = l2 and l2:match('^/%* %++ END '..string.patescape(includeInfo)..' %*/$')
+			local isEmpty
+			if l2 then
+				if l2:match('^/%* %++ END '..string.patescape(includeInfo)..' %*/$') then
+					isEmpty = true
+				elseif l2:match('^'..string.patescape("]] require 'ffi.req' '")..'.*'..string.patescape("' ffi.cdef[[")..'$') then
+					isEmpty = true
+				end
+			end
 			if not isEmpty then
 				-- this is the search and the includePath
 				-- match both? or just the 2nd?
@@ -620,7 +625,7 @@ local function preprocessWithCompiler(inc)
 					or includeInfo:match'^(".-[^\\]")'
 					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
 				local includePath = includeInfo:sub(#search+2)
-				return search, includePath
+				return plus, search, includePath
 			end
 		end
 	end
@@ -630,7 +635,7 @@ local function preprocessWithCompiler(inc)
 	-- l = current line
 	-- l2 = optional next line for testing empty lines
 	local function processIncludeBeginComment(fp, line, l, l2)
-		local search, includePath = parseIncludeBeginComment(l, l2)
+		local plus, search, includePath = parseIncludeBeginComment(l, l2)
 		if not search then return end
 		local prevIncInfo = prevIncludeInfos[includePath]
 		local newIncInfo = {
@@ -656,8 +661,8 @@ local function preprocessWithCompiler(inc)
 	end
 
 	local function checkIncludeComments(fp)
-		local data = fp:read()
-		local lines = string.split(assert(fp:read()), '\n')
+		local data = outdir(fp):read()
+		local lines = string.split(data, '\n')
 		for i,l in ipairs(lines) do
 			processIncludeBeginComment(fp, i, l, lines[i+1])
 		end
@@ -670,8 +675,8 @@ local function preprocessWithCompiler(inc)
 	local incIndex = assert(includeList:find(inc))
 	for i=1,incIndex-1 do
 		local pinc = includeList[i]
-		local fp = outdir(pinc.out)
-		if not fp:exists() then
+		local fp = path(pinc.out)
+		if not outdir(fp):exists() then
 			print('!!! '..fp.." doesn't exist - can't compare like include trees")
 		else
 			checkIncludeComments(fp)
@@ -802,10 +807,11 @@ local function preprocessWithCompiler(inc)
 				end):setmetatable(nil)
 				if flags[1] then
 					-- begin file
+					local wasSuppressed = (incstack:last() or {}).suppress
 					local top = {
 						path = filename,
 						search = lastSearch,
-						suppress = (incstack:last() or {}).suppress,
+						suppress = wasSuppressed, 
 					}
 					incstack:insert(top)
 					if filename == '<built-in>'
@@ -826,11 +832,12 @@ local function preprocessWithCompiler(inc)
 						-- then just insert it here
 						local incinfo = prevIncludeInfos[filename]
 						if incinfo and #incstack > 1 then	-- don't use ourselves
-							lines:insert(i+1, "]] require 'ffi.req' '"
-								..incinfo.lua.path:match'^(.*)%.lua$':gsub('/', '.')
-								.."' ffi.cdef[[")
-							i = i + 1
-print('suppressing', filename)							
+							if not wasSuppressed then
+								lines:insert(i+1, "]] require 'ffi.req' '"
+									..incinfo.lua.path:match'^(.*)%.lua$':gsub('/', '.')
+									.."' ffi.cdef[[")
+								i = i + 1
+							end
 							incstack:last().suppress  = true
 						end
 					end
@@ -844,7 +851,7 @@ print('suppressing', filename)
 						i = i - 1
 					else
 						local search = searchForPath[top.path]
-						if incstack:last().suppress then
+						if (incstack[#incstack-1] or {}).suppress then
 							lines:remove(i)
 							i = i - 1
 						else
@@ -929,8 +936,8 @@ path'~before-final.h':write(code)
 		-- WRITE CODE HERE - BEFORE CHECKING DUPLICATE INCLUDE TREES
 		-- that means we're writing it twice
 		-- TODO move the write out of make.lua
-		local fp = outdir(inc.out)
-		fp:write(code)
+		local fp = path(inc.out)
+		outdir(fp):write(code)
 
 		-- in fact, if I'm handling this in #include handling
 		-- then this will return nothing, right?

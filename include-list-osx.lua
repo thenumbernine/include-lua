@@ -97,7 +97,9 @@ return table{
 		inc = '<time.h>',
 		out = 'OSX/c/time.lua',
 		final = function(code)
-			code = fixEnumsAndDefineMacrosInterleaved(code)
+			-- luajit can't handle these attributes ...
+			code = code:gsub('__attribute__%(%(availability%b()%)%)', '')
+				:gsub('%s*\n%s*\n', '\n')
 			return code
 		end,
 	},
