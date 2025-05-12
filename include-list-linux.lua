@@ -10,24 +10,40 @@ local function remove_VA_LIST_DEFINED(code)
 	return removeEnum(code, '_VA_LIST_DEFINED = 1')
 end
 
--- unistd.h stdio.h fcntl.lua all define SEEK_*, so ...
 local function replace_SEEK(code)
-	return safegsub(
-		code,
-		[[
+	-- unistd.h stdio.h fcntl.lua all define SEEK_*, so ...
+	code = safegsub(code, [[
 enum { SEEK_SET = 0 };
 enum { SEEK_CUR = 1 };
 enum { SEEK_END = 2 };
 ]],
 		"]] require 'ffi.req' 'c.bits.types.SEEK' ffi.cdef[[\n"
 	)
+	-- fcntl.lua unistd.lua have these:
+	code = safegsub(code, [[
+enum { R_OK = 4 };
+enum { W_OK = 2 };
+enum { X_OK = 1 };
+enum { F_OK = 0 };
+]],
+		'')
+	code = safegsub(code, [[
+enum { F_ULOCK = 0 };
+enum { F_LOCK = 1 };
+enum { F_TLOCK = 2 };
+enum { F_TEST = 3 };
+]],
+		'')
+	return code
 end
 
 return table{
 
 	----------------------- INTERNALLY REQUESTED: -----------------------
 
-	-- fake file, used by <stdio.h> <unistd.h> <fcntl.h>
+	-- fake file
+	-- SEEK_* is used by <stdio.h> <unistd.h> <fcntl.h>
+	-- *_OK is used by <unistd.h> <fcntl.h>
 	-- they all hvae the same macros so they're going here:
 	{
 		inc = '$notthere.h',
@@ -38,6 +54,14 @@ ffi.cdef[[
 enum { SEEK_SET = 0 };
 enum { SEEK_CUR = 1 };
 enum { SEEK_END = 2 };
+enum { R_OK = 4 };
+enum { W_OK = 2 };
+enum { X_OK = 1 };
+enum { F_OK = 0 };
+enum { F_ULOCK = 0 };
+enum { F_LOCK = 1 };
+enum { F_TLOCK = 2 };
+enum { F_TEST = 3 };
 ]]
 ]=],
 	},
