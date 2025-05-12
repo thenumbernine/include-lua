@@ -144,6 +144,9 @@ return table{
 	{inc='<sys/sysinfo.h>', out='Linux/c/sys/sysinfo.lua'},
 --]====] -- END INTERNALLY REQUESTED
 
+	-- used by <string.h> <ctype.h>
+	{inc='<bits/types/locale_t.h>', out='Linux/c/bits/types/locale_t.lua'},
+
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
 		------------ ISO/IEC 9899:1990 (C89, C90) ------------

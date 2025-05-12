@@ -661,7 +661,7 @@ insert the lines above into a table auto-serialized as 'include-list-osx-interna
 make sure to insert it as high as possible but beneath both dependencies
 then re-run it
 --]]
-os.exit(1)
+		os.exit(1)
 	end
 
 	-- fp = current file path (used to report errors, not for file IO)
@@ -883,7 +883,6 @@ os.exit(1)
 						newlines:insert(l)
 					end
 				elseif l:find'^#' then
-print('handling preprocessor line', l)
 					-- handle preprocessor include results
 					-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
 					local lineno, includePath, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
@@ -916,7 +915,6 @@ print('handling preprocessor line', l)
 								search = lastSearch,
 								suppress = wasSuppressed,
 							}
-	print('incstack pushing', tolua(top))
 							incstack:insert(top)
 							if includePath == '<built-in>'
 							or includePath == '<command line>'	-- clang
@@ -959,10 +957,10 @@ print('handling preprocessor line', l)
 												reqpath = reqpath:sub(#ffi.os+2)
 											end
 
-											newlines:insert(i+1, "]] require 'ffi.req' '"
+											newlines:insert("]] require 'ffi.req' '"
 												..reqpath
 												.."' ffi.cdef[["
-		--..'\n...from: '..tolua(prevIncInfo)
+--..'\n...from: '..tolua(prevIncInfo)
 											)
 											incstack:last().suppress  = true
 										end
@@ -989,6 +987,7 @@ print('handling preprocessor line', l)
 										-- so if our END matches the prev line's BEGIN then remove both
 										local beginLine = '/* '..('+'):rep(#incstack)..' BEGIN '..search..' '..top.path..' */'
 										if newlines:last() == beginLine then
+										--if false then
 											newlines[#newlines] = nil
 										else
 											newlines:insert('/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */')
