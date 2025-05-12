@@ -14,8 +14,9 @@ local function removeAttrAvailability(code)
 end
 
 return table{
+	
+	----------------------- INTERNALLY REQUESTED: -----------------------
 
--- [====[ BEGIN INTERNALLY REQUESTED
 -- They only exist to replace duplicate-generated ctypes
 -- This process of duplication-detection can be automated:
 -- 1) generate a binding file
@@ -215,8 +216,6 @@ return table{
 
 	-- used by <wchar.h> <ctype.h>
 	{inc='<sys/_types/_wint_t.h>', out='OSX/c/sys/_types/_wint_t.lua'},
-
---]====] -- END INTERNALLY REQUESTED
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
@@ -425,7 +424,6 @@ return wrapper
 	{
 		inc = '<complex.h>',
 		out = 'OSX/c/complex.lua',
-		enumGenUnderscoreMacros = true,
 		final = function(code)
 			code = commentOutLine(code, 'enum { complex = 0 };')
 			return code

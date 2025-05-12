@@ -681,13 +681,18 @@ then re-run it
 		}
 		if not prevIncInfo then
 			prevIncludeInfos[includePath] = newIncInfo
+--DEBUG:print("adding prevIncludeInfos for ", pinc.inc)
 			return
 		end
 
 		if prevIncInfo.lua == fp then
+			--[[ NOTICE this is a good indicator of an error, however
+			-- some files like math.h will change macros and re-include the same file again and again ...
 			print('***** 1st:', tolua(newIncInfo))
 			print('***** 2nd:', tolua(prevIncInfo))
-			error"somehow we included the same path twice!"
+			print"somehow we included the same path twice!"
+			--]]
+			return
 		end
 
 		reportDups(newIncInfo, prevIncInfo, includePath)
@@ -712,6 +717,7 @@ then re-run it
 		if not outdir(fp):exists() then
 			print('!!! '..fp.." doesn't exist - can't compare like include trees")
 		else
+--DEBUG:print("checkIncludeComments", pinc.inc)
 			checkIncludeComments(pinc, fp, false)
 		end
 	end
