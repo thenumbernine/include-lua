@@ -47,19 +47,6 @@ local function replace_va_list_require(code)
 	)
 end
 
--- unistd.h and stdio.h both define SEEK_*, so ...
-local function replace_SEEK(code)
-	return safegsub(
-		code,
-		[[
-enum { SEEK_SET = 0 };
-enum { SEEK_CUR = 1 };
-enum { SEEK_END = 2 };
-]],
-		"]] require 'ffi.req' 'c.bits.types.SEEK' ffi.cdef[[\n"
-	)
-end
-
 -- TODO keeping warnings as comments seems nice
 --  but they insert at the first line
 --  which runs the risk of bumping the first line skip of BEGIN ...

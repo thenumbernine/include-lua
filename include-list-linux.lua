@@ -5,32 +5,42 @@ local util = require 'util'
 local safegsub = util.safegsub
 local removeEnum = util.removeEnum
 
--- TODO maybe ffi.Linux.c.bits.types instead
--- pid_t and pid_t_defined are manually inserted into lots of dif files
--- i've separated it into its own file myself, so it has to be manually replaced
--- same is true for a few other types
-local function replace_bits_types_builtin(code, ctype)
-	-- if we're excluing underscore macros this then the enum line won't be there.
-	-- if we're including underscore macros then the enum will be multiply defined and need to b removed
-	-- one way to unify these is just remove the enum regardless (in the filter() function) and then gsub the typedef with the require
-	return safegsub(
-		code,
-		string.patescape([[
-typedef __]]..ctype..[[ ]]..ctype..[[;
-enum { __]]..ctype..[[_defined = 1 };]]
-		),
-		[=[]] require 'ffi.req' 'c.bits.types.]=]..ctype..[=[' ffi.cdef[[]=]
-	)
-end
-
 -- _VA_LIST_DEFINED and va_list don't appear next to each other like the typical bits_types_builtin do
 local function remove_VA_LIST_DEFINED(code)
 	return removeEnum(code, '_VA_LIST_DEFINED = 1')
 end
 
+-- unistd.h stdio.h fcntl.lua all define SEEK_*, so ...
+local function replace_SEEK(code)
+	return safegsub(
+		code,
+		[[
+enum { SEEK_SET = 0 };
+enum { SEEK_CUR = 1 };
+enum { SEEK_END = 2 };
+]],
+		"]] require 'ffi.req' 'c.bits.types.SEEK' ffi.cdef[[\n"
+	)
+end
+
 return table{
 
 	----------------------- INTERNALLY REQUESTED: -----------------------
+
+	-- fake file, used by <stdio.h> <unistd.h> <fcntl.h>
+	-- they all hvae the same macros so they're going here:
+	{
+		inc = '$notthere.h',
+		out = 'Linux/c/bits/types/SEEK.lua',
+		forcecode = [=[
+local ffi = require 'ffi'
+ffi.cdef[[
+enum { SEEK_SET = 0 };
+enum { SEEK_CUR = 1 };
+enum { SEEK_END = 2 };
+]]
+]=],
+	},
 
 	-- used by <time.h> <ctype.h>
 	{inc='<bits/types.h>', out='Linux/c/bits/types.lua'},
@@ -228,11 +238,7 @@ struct __jmp_buf_tag
 	-- in list: Windows Linux OSX
 	-- depends: features.h stddef.h bits/types.h and too many really
 	-- this and any other file that requires stddef might have these lines which will have to be removed:
-	{inc='<time.h>', out='Linux/c/time.lua', final=function(code)
-		-- final define->enum's screwing things up ...
-		code = removeEnum(code, '__pid_t_defined = 1')
-		return code
-	end},
+	{inc='<time.h>', out='Linux/c/time.lua'},
 
 	-- in list: Windows Linux OSX
 	-- depends on <features.h>
@@ -297,16 +303,8 @@ return setmetatable({
 		inc = '<stdio.h>',
 		out = 'Linux/c/stdio.lua',
 		final = function(code)
+			code = replace_SEEK(code)
 			code = remove_VA_LIST_DEFINED(code)
-			--code = replace_bits_types_builtin(code, 'off_t')
-			--code = replace_bits_types_builtin(code, 'ssize_t')
-			-- this is in stdio.h and unistd.h
-			--code = replace_SEEK(code)
-			-- this all stems from #define stdin stdin etc
-			-- which itself is just for C99/C89 compat
-			--code = removeEnum(code, 'stdin = 0')
-			--code = removeEnum(code, 'stdout = 0')
-			--code = removeEnum(code, 'stderr = 0')
 			-- for fopen overloading
 			code = code .. [[
 -- special case since in the browser app where I'm capturing fopen for remote requests and caching
@@ -337,15 +335,7 @@ return setmetatable({}, {
 	},
 
 	-- in list: Linux OSX
-	{
-		inc = '<signal.h>',
-		out = 'Linux/c/signal.lua',
-		final=function(code)
-			-- final define->enum's screwing things up ...
-			code = removeEnum(code, '__pid_t_defined = 1')
-			return code
-		end,
-	},
+	{inc='<signal.h>', out='Linux/c/signal.lua'},
 
 		------------ ISO/IEC 9899:1990/Amd.1:1995 ------------
 
@@ -404,11 +394,14 @@ return setmetatable({}, {
 	{inc='<dirent.h>', out='Linux/c/dirent.lua'},
 
 	-- in list: Windows Linux OSX
-	{inc='<fcntl.h>', out='Linux/c/fcntl.lua', final=function(code)
-		-- final define->enum's screwing things up ...
-		code = removeEnum(code, '__pid_t_defined = 1')
-		return code
-	end},
+	{
+		inc = '<fcntl.h>',
+		out = 'Linux/c/fcntl.lua',
+		final = function(code)
+			code = replace_SEEK(code)
+			return code
+		end,
+	},
 
 	-- in list: Linux OSX
 	-- depends: stddef.h
@@ -425,6 +418,7 @@ return setmetatable({}, {
 		inc = '<unistd.h>',
 		out = 'Linux/c/unistd.lua',
 		final = function(code)
+			code = replace_SEEK(code)
 			-- but for interchangeability with Windows ...
 			code = code .. [[
 return ffi.C
@@ -478,14 +472,22 @@ return setmetatable({
 	{inc='<sys/mman.h>', out='Linux/c/sys/mman.lua'},
 
 	-- in list: Linux OSX
-	{inc='<sys/time.h>', out='Linux/c/sys/time.lua', final=function(code)
-		code = removeEnum(code, '__suseconds_t_defined = 1')
-		return code
-	end},
+	{inc='<sys/time.h>', out='Linux/c/sys/time.lua'},
 
 	----------------------- OS-SPECIFIC & EXTERNALLY REQUESTED BY 3RD PARTY LIBRARIES: -----------------------
 
 }:mapi(function(inc)
 	inc.os = 'Linux' -- meh?  just have all these default for -nix systems?
+	
+	-- rule of thumb for linux gcc
+	-- to get rid of the __*_defined = 1 defines => enums
+	-- maybe a better fix would be to cull macros before enum-generation ...
+	local oldfinal = inc.final
+	inc.final = function(code)
+		code = removeEnum(code, '__[_%w]*_defined = 1')
+		if oldfinal then code = oldfinal(code) end
+		return code
+	end
+
 	return inc
 end)
