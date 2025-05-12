@@ -945,11 +945,18 @@ os.exit(1)
 
 									reportDups(newIncInfo, prevIncInfo, includePath)
 								else
+									local reqpath = previnc.out:match'^(.*)%.lua$':gsub('/', '.')
+									-- ... but now this has the fif.os in it!
+									-- But this shouldn't be including the ffi.os in it!
+									-- That's the whole point of `require 'ffi.req'`!
+									-- But at the end of *only* the os-specific include-lists I am adding in the `OS/` prefix to the path ... because thats where the binding files get written ...
+									-- so *HERE* I should be removing it again...
+									if reqpath:sub(1,#ffi.os+1) == ffi.os..'.' then
+										reqpath = reqpath:sub(#ffi.os+2)
+									end
+
 									lines:insert(i+1, "]] require 'ffi.req' '"
-										-- TODO TODO TODO TODO TODO this shouldn't be including the ffi.os in it! That's the whole point of ffi.req!
-										-- but at the end of *only* the os-specific include-lists I am adding in the `OS/` prefix to the path ... because thats where the binding files get written ...
-										-- so *HERE* should I be removing it again?
-										..previnc.out:match'^(.*)%.lua$':gsub('/', '.')
+										..reqpath
 										.."' ffi.cdef[["
 --..'\n...from: '..tolua(prevIncInfo)
 									)
