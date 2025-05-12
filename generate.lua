@@ -604,7 +604,7 @@ local function preprocessWithCompiler(inc)
 	local outdir = path'results/ffi'
 
 
--- TODO TODO TODO 
+-- TODO TODO TODO
 -- if I'm testing these one at a time
 -- then how about not running O(n^2) over them all to find duplicate include trees
 -- how about instead I generate each without trees
@@ -730,11 +730,11 @@ os.exit(1)
 					"-D_Nonnull=",	-- somehow the builtin define missed this one ...
 					"-D_Nullable=",	-- this and _Nonnull, should I collect them and add them to all osx clang runs?
 				},
+				Windows = {
+					-- I put all my 3rd party include files in windows in $HOME/include... where else would they go?
+					'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
+				},
 			})[ffi.os],
-			{
-				-- * I was also adding -I $HOME/include .. bad idea?
-				'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
-			},
 			-- * add `pkg-config ${name} --cflags` if it's there
 			inc.pkgconfig and {string.trim(io.readproc('pkg-config --cflags '..inc.pkgconfig))} or nil,
 			-- * add `inc.includedirs`
@@ -752,18 +752,23 @@ os.exit(1)
 	for _,search in ipairs(luaIncMacroFiles) do
 		-- TODO best way to get include lookup
 		-- This outputs the include graph ... but all I need is the first result.
-		local pinc = assert(select(2, includeList:find(nil, function(o) return o.inc == search end)), "failed to find include-list entry for "..search)
-		local cmd = "echo '#include "..search.."' | (gcc -H -MM -E -x c "
-			..cflagsForInc(pinc)
-			.." - 2>&1)"
+		local pinc = select(2, includeList:find(nil, function(o) return o.inc == search end))
+		-- warn if not there? "failed to find include-list entry for "..search
+
+		-- how to find the request? which incldue paths to use?
+		-- first see if it is there by itself in our include-list
+		-- then try with the currently-generating file
+		local cflags = (pinc or inc) and cflagsForInc(pinc or inc) or ''
+
+		local cmd = "echo '#include "..search.."' | (gcc -H -MM -E -x c "..cflags.." - 2>&1)"
 		local out = io.readproc(cmd)
 		local lines = string.split(out, '\n')
 		local line = lines[1]
-		if not line:match'^%. ' then 
+		if not line:match'^%. ' then
 			error("searchForPath got a bad line: "..tostring(line)
 				..'\nsearch: '..search
 				..'\noutput: '..out
-				..'\ncmd: '..cmd) 
+				..'\ncmd: '..cmd)
 		end
 		searchForPath[line:sub(3)] = search
 	end
@@ -777,7 +782,12 @@ os.exit(1)
 	local tmpfn = path'gcc-preproc-results.h'
 	local cmd = table{
 		"echo '"	-- echo is handed to system wrapped in 's
-			..table():append(inc.silentincs, {inc.inc}, inc.moreincs)
+			..table():append(
+				-- TODO TODO TODO get silentincs working, cuz its not working!
+				inc.silentincs,
+				{inc.inc},
+				inc.moreincs
+			)
 			:mapi(function(inc)
 				return '#include '..inc..'\\n'
 			end):concat()
@@ -799,7 +809,7 @@ os.exit(1)
 
 	-- 3) transform to my format
 	local lastSearch
-	local lastSearchIncludeNext 
+	local lastSearchIncludeNext
 	local incstack = table()	-- .path, .search
 	local macros = {}
 	local macrosInOrder = table()
@@ -812,9 +822,11 @@ os.exit(1)
 				i = i - 1
 			elseif l:find'^#define' then
 				local top = incstack:last()
+
 				if top.path == '<built-in>'
 				or top.path == '<command line>'
-				-- TODO
+				-- if the file isn't in our list of requested files to generate content for ...
+				-- TODO on jpeg this is filtering out too many macros ...
 				or not luaIncMacroFiles:find(searchForPath[top.path])
 				then
 					-- don't save builtins
@@ -857,13 +869,13 @@ os.exit(1)
 				if not rest then
 					error("couldn't pick out the #include argument from: "..l)
 				end
-				
+
 				lastSearch = rest:match'^(<[^>]*>)'
 					or rest:match'^(".-[^\\]")'
 					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
 				if lastSearchIncludeNext then
 					lastSearch = string.trim(lastSearch)
-					lastSearch = 
+					lastSearch =
 						lastSearch:sub(1,1)
 						..lastSearch:sub(2,-2)..'$include_next'
 						..lastSearch:sub(-1)
@@ -941,6 +953,7 @@ os.exit(1)
 									i = i + 1
 									incstack:last().suppress  = true
 								end
+								--incstack:last().suppress  = true
 							end
 						end
 					end

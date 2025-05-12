@@ -145,9 +145,8 @@ return table{
 
 		------------ ISO/IEC 9899:1990 (C89, C90) ------------
 
-	-- in list: Linux
+	-- in list: Linux OSX
 	-- included by SDL/SDL_stdinc.h
-	-- I'm surprised it's not used more often, has stuff like 'tolower'
 	{inc='<ctype.h>', out='Linux/c/ctype.lua'},
 
 	-- in list: Windows Linux OSX

@@ -24,6 +24,7 @@ local tolua = require 'ext.tolua'
 local util = require 'util'
 local safegsub = util.safegsub
 local removeEnum = util.removeEnum
+local commentOutLine = util.commentOutLine
 
 --[[
 args:
@@ -374,7 +375,7 @@ end
 	-- apt install libffi-dev
 	{
 		inc = '<ffi.h>',
-		out = 'libffi.lua', 
+		out = 'libffi.lua',
 		pkgconfig = 'libffi',	-- points to /System stuff, not homebrew...
 		final = function(code)
 			code = removeEnum(code, 'FFI_64_BIT_MAX = 9223372036854775807')
@@ -394,7 +395,7 @@ return require 'ffi.load' 'ffi'
 	{
 		inc = '<gif_lib.h>',
 		out = 'gif.lua',
-		-- pkgconfig not working for brew ...
+		-- no brew pkgconfig file for giflib...
 		includedirs = ffi.osx == 'OSX' and {
 			'/usr/local/opt/giflib/include/',
 		} or nil,
@@ -538,13 +539,24 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		-- cimgui has these 3 files together:
 		-- OpenGL i had to separate them
 		-- and OpenGL i put them in OS-specific place
-		inc = '"cimgui.h"',
+		inc = '<cimgui.h>',
 		out = 'cimgui.lua',
 		moreincs = {
-			'"imgui_impl_sdl2.h"',
-			'"imgui_impl_opengl3.h"',
+			'<imgui_impl_sdl2.h>',
+			'<imgui_impl_opengl3.h>',
 		},
-		silentincs = {'"imgui.h"'},	-- full of C++ so don't include it
+		silentincs = {
+			-- include these but don't use them ... hmm ...
+			-- quotes cuz within its own framework it uses quotes
+			-- (honestly, if you're writing a distributable header,
+			--  you should be assuming your headers are installed and so you should be using <> and not ""
+			--  and for that reason, when do we ever want a distinction between <> and ""?
+			--  there should be only one #include search path set,
+			--  and devevlopment projects should just put their cwd at the top of that search list.)
+			-- TODO TODO TODO get silentincs working, cuz its not working!
+			'<imgui.h>',
+			'"imgui.h"',
+		},	-- full of C++ so don't include it
 		includedirs = {
 			'/usr/local/include/imgui-1.90.5dock',
 		},
@@ -669,9 +681,7 @@ return require 'ffi.load' 'OpenCL'
 	{
 		inc = '<jpeglib.h>',
 		pkgconfig = 'libjpeg',
-		--[[ TODO
-		-- this is needed for makeLibWrapper
-		-- but the new system needs an include-list entry for each #include search that it finds ...
+		-- [[ TODO
 		macroincs = {
 			-- these are for the macro preprocessor to know what macros to keep for emitting into enums, vs which to throw out
 			'<jconfig.h>',

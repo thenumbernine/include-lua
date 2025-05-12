@@ -26,7 +26,7 @@ return table{
 
 	-- used by <time.h> <string.h>
 	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
-	
+
 	-- used by <_types.h> <machine/types.h>
 	{inc='<i386/_types.h>', out='OSX/c/i386/_types.lua'},
 
@@ -83,7 +83,7 @@ return table{
 
 	-- used by <pthread.h> <sys/signal.h>
 	{inc='<sys/_types/_sigset_t.h>', out='OSX/c/sys/_types/_sigset_t.lua'},
-	
+
 	-- used by <unistd.h> <sys/signal.h>
 	{inc='<sys/_types/_uid_t.h>', out='OSX/c/sys/_types/_uid_t.lua'},
 
@@ -213,12 +213,22 @@ return table{
 	-- used by <sys/types.h> <pthread.h>
 	{inc='<sys/_pthread/_pthread_key_t.h>', out='OSX/c/sys/_pthread/_pthread_key_t.lua'},
 
+	-- used by <wchar.h> <ctype.h>
+	{inc='<sys/_types/_wint_t.h>', out='OSX/c/sys/_types/_wint_t.lua'},
 
 --]====] -- END INTERNALLY REQUESTED
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
 		------------ ISO/IEC 9899:1990 (C89, C90) ------------
+
+	-- in list: Linux OSX
+	-- included by SDL/SDL_stdinc.h
+	{inc='<ctype.h>', out='OSX/c/ctype.lua',
+		macros={
+			'_DONT_USE_CTYPE_INLINE_'
+		},
+	},
 
 	-- in list: Windows Linux OSX
 	{inc='<stddef.h>', out='OSX/c/stddef.lua'},
@@ -491,7 +501,7 @@ return ffi.C
 			return code
 		end,
 	},
-	
+
 	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
 	-- in list: Windows Linux OSX
 	{
