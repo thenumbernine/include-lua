@@ -1,6 +1,8 @@
 local table = require 'ext.table'
 
 return table{
+
+--[====[ BEGIN INTERNALLY REQUESTED
 	{inc='<bits/wordsize.h>', out='Linux/c/bits/wordsize.lua'},
 
 	-- depends: bits/wordsize.h
@@ -140,6 +142,7 @@ return table{
 	end},
 
 	{inc='<sys/sysinfo.h>', out='Linux/c/sys/sysinfo.lua'},
+--]====] -- END INTERNALLY REQUESTED
 
 	----------------------- ISO/POSIX STANDARDS: -----------------------
 
@@ -148,6 +151,25 @@ return table{
 	-- in list: Linux OSX
 	-- included by SDL/SDL_stdinc.h
 	{inc='<ctype.h>', out='Linux/c/ctype.lua'},
+
+	-- in list: Windows Linux OSX
+	{inc='<stddef.h>', out='Linux/c/stddef.lua'},
+
+	-- in list: Windows Linux OSX
+	-- depends: features.h stddef.h bits/libc-header-start.h
+	{inc='<string.h>', out='Linux/c/string.lua'},
+
+	-- in list: Windows Linux OSX
+	-- depends: features.h stddef.h bits/types.h and too many really
+	-- this and any other file that requires stddef might have these lines which will have to be removed:
+	{
+		inc = '<time.h>',
+		out = 'Linux/c/time.lua',
+		final = function(code)
+			code = replace_bits_types_builtin(code, 'pid_t')
+			return code
+		end,
+	},
 
 	-- in list: Windows Linux OSX
 	-- depends on <features.h>
@@ -165,25 +187,6 @@ return setmetatable({
 	__index = ffi.C,
 })
 ]]
-			return code
-		end,
-	},
-
-	-- in list: Windows Linux OSX
-	{inc='<stddef.h>', out='Linux/c/stddef.lua'},
-
-	-- in list: Windows Linux OSX
-	-- depends: features.h stddef.h bits/libc-header-start.h
-	{inc='<string.h>', out='Linux/c/string.lua'},
-
-	-- in list: Windows Linux OSX
-	-- depends: features.h stddef.h bits/types.h and too many really
-	-- this and any other file that requires stddef might have these lines which will have to be removed:
-	{
-		inc = '<time.h>',
-		out = 'Linux/c/time.lua',
-		final = function(code)
-			code = replace_bits_types_builtin(code, 'pid_t')
 			return code
 		end,
 	},

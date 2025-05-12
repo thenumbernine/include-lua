@@ -809,196 +809,208 @@ os.exit(1)
 
 	-- 3) transform to my format
 	local lastSearch
-	local lastSearchIncludeNext
 	local incstack = table()	-- .path, .search
 	local macros = {}
 	local macrosInOrder = table()
 	do
-		local i = 1
-		while i <= #lines do
-			local l = lines[i]
-			if l == '' then
-				lines:remove(i)
-				i = i - 1
-			elseif l:find'^#define' then
-				local top = incstack:last()
+		local newlines = table()
+		local saveline
+		assert(xpcall(function()
+			for i,l in ipairs(lines) do
+				saveline = i
+				if l == '' then
+				elseif l:find'^#define' then
+					local top = incstack:last()
 
-				if top.path == '<built-in>'
-				or top.path == '<command line>'
-				-- if the file isn't in our list of requested files to generate content for ...
-				-- TODO on jpeg this is filtering out too many macros ...
-				or not luaIncMacroFiles:find(searchForPath[top.path])
-				then
-					-- don't save builtins
-					-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
-				else
-					local k,v = l:match'^#define%s+([_%a][_%w]*)%s*(.-)$'
+					if not top	-- gcc linux doesn't specify the 'enter' include flag, i.e. no `# 0 "<stdin>" 1` like clang does.
+					or top.path == '<built-in>'
+					or top.path == '<command line>'	-- clang
+					or top.path == '<command-line>'	-- gcc
+					-- if the file isn't in our list of requested files to generate content for ...
+					-- TODO on jpeg this is filtering out too many macros ...
+					or not luaIncMacroFiles:find(searchForPath[top.path])
+					then
+						-- don't save builtins
+						-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
+					else
+						local k,v = l:match'^#define%s+([_%a][_%w]*)%s*(.-)$'
+						for j=#macrosInOrder,1,-1 do
+							if next(macrosInOrder[j]) == k then
+								macrosInOrder:remove(j)
+							end
+						end
+						macros[k] = v
+						macrosInOrder:insert{[k] = v}
+					end
+				elseif l:find'^#undef' then
+					local k = l:match'^#undef%s+([_%a][_%w]*)$'
+					macros[k] = nil
 					for j=#macrosInOrder,1,-1 do
 						if next(macrosInOrder[j]) == k then
 							macrosInOrder:remove(j)
 						end
 					end
-					macros[k] = v
-					macrosInOrder:insert{[k] = v}
-				end
-				lines:remove(i)
-				i = i - 1
-			elseif l:find'^#undef' then
-				local k = l:match'^#undef%s+([_%a][_%w]*)$'
-				macros[k] = nil
-				for j=#macrosInOrder,1,-1 do
-					if next(macrosInOrder[j]) == k then
-						macrosInOrder:remove(j)
+				elseif l:find'^#include'
+				or l:find'^#include_next'
+				then
+					-- -dI inserts the #include directive ...
+					-- ... and then a preprocessor markup for the current include file
+					-- ... and then a preprocessor markup for the included file.
+					-- so save this for our mapping from abs path to include directive
+					local lastSearchIncludeNext = nil
+					local rest = l:match'^#include (.*)$'
+					if not rest then
+						rest = l:match'^#include_next (.*)$'
+						lastSearchIncludeNext = true
 					end
-				end
-				lines:remove(i)
-				i = i - 1
-			elseif l:find'^#include'
-			or l:find'^#include_next'
-			then
-				-- -dI inserts the #include directive ...
-				-- ... and then a preprocessor markup for the current include file
-				-- ... and then a preprocessor markup for the included file.
-				-- so save this for our mapping from abs path to include directive
-				lastSearchIncludeNext = nil
-				local rest = l:match'^#include (.*)$'
-				if not rest then
-					rest = l:match'^#include_next (.*)$'
-					lastSearchIncludeNext = true
-				end
-				if not rest then
-					error("couldn't pick out the #include argument from: "..l)
-				end
+					if not rest then
+						error("couldn't pick out the #include argument from: "..l)
+					end
 
-				lastSearch = rest:match'^(<[^>]*>)'
-					or rest:match'^(".-[^\\]")'
-					or error("couldn't pick out <> or \"\" argument from #include command: "..l)
-				if lastSearchIncludeNext then
-					lastSearch = string.trim(lastSearch)
-					lastSearch =
-						lastSearch:sub(1,1)
-						..lastSearch:sub(2,-2)..'$include_next'
-						..lastSearch:sub(-1)
-				end
-				lines:remove(i)
-				i = i - 1
-			elseif l:find'^#pragma' then
-				-- keep it
-				if incstack:last().suppress then
-					lines:remove(i)
-					i = i - 1
-				end
-			elseif l:find'^#' then
-				-- handle preprocessor include results
-				-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
-				local lineno, includePath, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
-				if not lineno then
-					error("got unknown preprocessor output line: "..l)
-				end
+					lastSearch = rest:match'^(<[^>]*>)'
+						or rest:match'^(".-[^\\]")'
+						or error("couldn't pick out <> or \"\" argument from #include command: "..l)
+					if lastSearchIncludeNext then
+						lastSearch = string.trim(lastSearch)
+						lastSearch =
+							lastSearch:sub(1,1)
+							..lastSearch:sub(2,-2)..'$include_next'
+							..lastSearch:sub(-1)
+					end
+				elseif l:find'^#pragma' then
+					-- keep it
+					if not incstack:last().suppress then
+						newlines:insert(l)
+					end
+				elseif l:find'^#' then
+print('handling preprocessor line', l)
+					-- handle preprocessor include results
+					-- https://gcc.gnu.org/onlinedocs/gcc-4.3.4/cpp/Preprocessor-Output.html#:~:text=The%20output%20from%20the%20C,of%20blank%20lines%20are%20discarded.
+					local lineno, includePath, flags = l:match'^# (%d+) (".-[^\\]")(.*)$'
+					if not lineno then
+						error("got unknown preprocessor output line: "..l)
+					end
 
-				includePath = includePath:match'^"(.*)"$':gsub('\\"', '"')
+					includePath = includePath:match'^"(.*)"$':gsub('\\"', '"')
 
-				flags = string.split(string.trim(flags), ' '):mapi(function(flag)
-					if flag == '' then return end	-- for empty strings
-					return true, assert(tonumber(flag))
-				end):setmetatable(nil)
-				if flags[1] then
-					-- begin file
-					local wasSuppressed = (incstack:last() or {}).suppress
-					local top = {
-						path = includePath,
-						search = lastSearch,
-						suppress = wasSuppressed,
-					}
-					incstack:insert(top)
-					if includePath == '<built-in>'
-					or includePath == '<command line>'
+					-- on linux gcc, we are getting `# line file flags` lines for builtin includes always at the top
+					-- long before any `#include` lines
+					-- and that means `lastSearch` is not yet defined ...
+					-- especially "/usr/include/stdc-predef.h" ...
+					if lastSearch == nil
+					and includePath == '/usr/include/stdc-predef.h'
 					then
-						lines:remove(i)
-						i = i - 1
 					else
-						searchForPath[includePath] = lastSearch
-						if incstack:last().suppress then
-							lines:remove(i)
-							i = i - 1
-						else
-							lines[i] = '/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..includePath..' */'
-						end
-
-						-- if the #include file has already been defined ...
-						-- then just insert it here
-						local prevIncInfo = prevIncludeInfos[includePath]
-						if prevIncInfo and #incstack > 1 then	-- don't use ourselves
-							if not wasSuppressed then
-								-- prevIncInfo.filename = the duplicated tree
-								-- prevIncInfo.search = what is #include'd to generate that
-								-- ... then we have to find in all includeList for prevIncInfo.search
-								-- ... then we put its .out here
-								local previnc = select(2, includeList:find(nil, function(o) return o.inc == prevIncInfo.search end))
-								if not previnc then
-									local newIncInfo = {
-										search = lastSearch,
-										line = i,
-										lua = path(inc.out),
-										inc = inc,
-									}
-
-									reportDups(newIncInfo, prevIncInfo, includePath)
+						flags = string.split(string.trim(flags), ' '):mapi(function(flag)
+							if flag == '' then return end	-- for empty strings
+							return true, assert(tonumber(flag))
+						end):setmetatable(nil)
+						if flags[1] then
+							if not lastSearch then
+								error("got an include preprocessor output before an #include statement: "..includePath)
+							end
+							-- begin file
+							local wasSuppressed = (incstack:last() or {}).suppress
+							local top = {
+								path = includePath,
+								search = lastSearch,
+								suppress = wasSuppressed,
+							}
+	print('incstack pushing', tolua(top))
+							incstack:insert(top)
+							if includePath == '<built-in>'
+							or includePath == '<command line>'	-- clang
+							or includePath == '<command-line>'	-- gcc
+							then
+							else
+								searchForPath[includePath] = lastSearch
+								if incstack:last().suppress then
 								else
-									local reqpath = previnc.out:match'^(.*)%.lua$':gsub('/', '.')
-									-- ... but now this has the fif.os in it!
-									-- But this shouldn't be including the ffi.os in it!
-									-- That's the whole point of `require 'ffi.req'`!
-									-- But at the end of *only* the os-specific include-lists I am adding in the `OS/` prefix to the path ... because thats where the binding files get written ...
-									-- so *HERE* I should be removing it again...
-									if reqpath:sub(1,#ffi.os+1) == ffi.os..'.' then
-										reqpath = reqpath:sub(#ffi.os+2)
-									end
-
-									lines:insert(i+1, "]] require 'ffi.req' '"
-										..reqpath
-										.."' ffi.cdef[["
---..'\n...from: '..tolua(prevIncInfo)
-									)
-									i = i + 1
-									incstack:last().suppress  = true
+									newlines:insert('/* '..('+'):rep(#incstack)..' BEGIN '..lastSearch..' '..includePath..' */')
 								end
-								--incstack:last().suppress  = true
+
+								-- if the #include file has already been defined ...
+								-- then just insert it here
+								local prevIncInfo = prevIncludeInfos[includePath]
+								if prevIncInfo and #incstack > 1 then	-- don't use ourselves
+									if not wasSuppressed then
+										-- prevIncInfo.filename = the duplicated tree
+										-- prevIncInfo.search = what is #include'd to generate that
+										-- ... then we have to find in all includeList for prevIncInfo.search
+										-- ... then we put its .out here
+										local previnc = select(2, includeList:find(nil, function(o) return o.inc == prevIncInfo.search end))
+										if not previnc then
+											local newIncInfo = {
+												search = lastSearch,
+												line = i,
+												lua = path(inc.out),
+												inc = inc,
+											}
+
+											reportDups(newIncInfo, prevIncInfo, includePath)
+										else
+											local reqpath = previnc.out:match'^(.*)%.lua$':gsub('/', '.')
+											-- ... but now this has the fif.os in it!
+											-- But this shouldn't be including the ffi.os in it!
+											-- That's the whole point of `require 'ffi.req'`!
+											-- But at the end of *only* the os-specific include-lists I am adding in the `OS/` prefix to the path ... because thats where the binding files get written ...
+											-- so *HERE* I should be removing it again...
+											if reqpath:sub(1,#ffi.os+1) == ffi.os..'.' then
+												reqpath = reqpath:sub(#ffi.os+2)
+											end
+
+											newlines:insert(i+1, "]] require 'ffi.req' '"
+												..reqpath
+												.."' ffi.cdef[["
+		--..'\n...from: '..tolua(prevIncInfo)
+											)
+											incstack:last().suppress  = true
+										end
+										--incstack:last().suppress  = true
+									end
+								end
+							end
+						elseif flags[2] then
+							-- returning *to* a file (so the last file on the stack is now closed)
+							local top = incstack:last()
+							if top then	-- gcc
+								if top.path == '<built-in>'
+								or top.path == '<command line>'	-- clang
+								or top.path == '<command-line>'	-- gcc
+								then
+								else
+									local search = searchForPath[top.path]
+									if (incstack[#incstack-1] or {}).suppress then
+									else
+										-- ok for osx and linux
+										-- sometimes we get empty files
+										-- and I already have the include-tree checker ignoring them
+										-- but it'd be better to just not spit them out at all
+										-- so if our END matches the prev line's BEGIN then remove both
+										local beginLine = '/* '..('+'):rep(#incstack)..' BEGIN '..search..' '..top.path..' */'
+										if newlines:last() == beginLine then
+											newlines[#newlines] = nil
+										else
+											newlines:insert('/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */')
+										end
+									end
+								end
+								incstack:remove()
 							end
 						end
 					end
-				elseif flags[2] then
-					-- returning *to* a file (so the last file on the stack is now closed)
-					local top = incstack:last()
-					if top.path == '<built-in>'
-					or top.path == '<command line>'
-					then
-						lines:remove(i)
-						i = i - 1
-					else
-						local search = searchForPath[top.path]
-						if (incstack[#incstack-1] or {}).suppress then
-							lines:remove(i)
-							i = i - 1
-						else
-							lines[i] = '/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */'
-						end
-					end
-					incstack:remove()
 				else
-					lines:remove(i)
-					i = i - 1
-				end
-			else
-				-- regular line
-				if incstack:last().suppress then
-					lines:remove(i)
-					i = i - 1
+					-- regular line
+					if not incstack:last().suppress then
+						newlines:insert(l)
+					end
 				end
 			end
-			i = i + 1
-		end
-		assert.len(incstack, 0)
+			assert.len(incstack, 0)
+		end, function(err)
+			return err..'\non line '..tostring(saveline)..'\n'..debug.traceback()
+		end))
+		lines = newlines
 	end
 
 	-- [[ append define's
