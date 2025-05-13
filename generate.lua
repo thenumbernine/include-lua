@@ -942,14 +942,11 @@ then re-run it
 							return true, assert(tonumber(flag))
 						end):setmetatable(nil)
 						if flags[1] then
-							if not lastSearch then
-								error("got an include preprocessor output before an #include statement: "..includePath)
-							end
 							-- begin file
 							local wasSuppressed = (incstack:last() or {}).suppress
 							local top = {
 								path = includePath,
-								search = lastSearch,
+								search = lastSearch or '<no search, so it better be some kind of builtin>',
 								suppress = wasSuppressed,
 							}
 							incstack:insert(top)
@@ -958,6 +955,10 @@ then re-run it
 							or includePath == '<command-line>'	-- gcc
 							then
 							else
+								if not lastSearch then
+									error("got an include preprocessor output before an #include statement: "..includePath)
+								end
+
 								searchForPath[includePath] = lastSearch
 								if incstack:last().suppress then
 								else

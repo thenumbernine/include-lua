@@ -13,6 +13,21 @@ local function removeAttrAvailability(code)
 		:gsub('%s*\n%s*\n', '\n')
 end
 
+local function replace_SEEK(code)
+	-- unistd.h stdio.h fcntl.h all define SEEK_*, so ...
+	code = safegsub(code, [[
+enum { SEEK_SET = 0 };
+enum { SEEK_CUR = 1 };
+enum { SEEK_END = 2 };
+enum { SEEK_HOLE = 3 };
+enum { SEEK_DATA = 4 };
+]],
+		"]] require 'ffi.req' 'c.bits.types.SEEK' ffi.cdef[[\n"
+	)
+	return code
+end
+
+
 return table{
 
 	----------------------- INTERNALLY REQUESTED: -----------------------
@@ -25,6 +40,21 @@ return table{
 -- 2c) build a DAG while you go, keep them in order.
 -- 3) once you're finished, any stored internally-requested files not requested this time around should be reported (out with the old).
 
+	-- fake file
+	-- SEEK_* is used by <stdio.h> <unistd.h> <fcntl.h>
+	-- they all hvae the same macros so they're going here:
+	{
+		inc = '$notthere.h',
+		out = 'OSX/c/bits/types/SEEK.lua',
+		forcecode = [=[
+local ffi = require 'ffi'
+ffi.cdef[[
+enum { SEEK_SET = 0 };
+enum { SEEK_CUR = 1 };
+enum { SEEK_END = 2 };
+]]
+]=]
+	},
 	-- used by <time.h> <string.h>
 	{inc='<Availability.h>', out='OSX/c/Availability.lua'},
 
@@ -230,10 +260,20 @@ return table{
 	},
 
 	-- in list: Windows Linux OSX
-	{inc='<stddef.h>', out='OSX/c/stddef.lua'},
+	{
+		inc='<stddef.h>',
+		out='OSX/c/stddef.lua',
+	},
 
 	-- in list: Windows Linux OSX
-	{inc='<string.h>', out='OSX/c/string.lua'},
+	{
+		inc='<string.h>',
+		out='OSX/c/string.lua',
+		final = function(code)
+			code = removeEnum(code, '_USE_FORTIFY_LEVEL = 2')
+			return code
+		end,
+	},
 
 	-- in list: Windows Linux OSX
 	{
@@ -267,7 +307,25 @@ return setmetatable({
 	-- ISO/IEC 9899:1999 (C99)
 	-- ... but it has to go above <stdlib.h>
 	-- in list: Windows Linux OSX
-	{inc='<stdint.h>', out='OSX/c/stdint.lua'},
+	{
+		inc='<stdint.h>',
+		out='OSX/c/stdint.lua',
+		final = function(code)
+			-- also in wchar.h
+			code = removeEnum(code, 'WCHAR_MAX = 2147483647')
+			-- if you want these then they have to go in the end as a wrapper, like in limits.h
+			code = removeEnum(code, 'INT64_MAX = 9223372036854775807')
+			code = removeEnum(code, 'UINT64_MAX = 18446744073709551615')
+			code = removeEnum(code, 'INT_LEAST64_MAX = 9223372036854775807')
+			code = removeEnum(code, 'UINT_LEAST64_MAX = 18446744073709551615')
+			code = removeEnum(code, 'INT_FAST64_MAX = 9223372036854775807')
+			code = removeEnum(code, 'UINT_FAST64_MAX = 18446744073709551615')
+			code = removeEnum(code, 'INTPTR_MAX = 9223372036854775807')
+			code = removeEnum(code, 'UINTPTR_MAX = 18446744073709551615')
+			code = removeEnum(code, 'SIZE_MAX = 18446744073709551615')
+			return code
+		end,
+	},
 
 	-- in list: Windows Linux OSX
 	{
@@ -281,16 +339,12 @@ return setmetatable({
 
 	-- in list: Windows Linux OSX
 	{inc='<limits.h>', out='OSX/c/limits.lua', final=function(code)
-		--[[ these ones are converting int64->double and failing
-		-- but i switched preprocessor methods to builtin gcc and now it's just not substituting at all ...
-		code = removeEnum(code, string.patescape"LONG_MAX = 9.2233720368548e+18")
-		code = removeEnum(code, string.patescape"LONG_MIN = -9.2233720368548e+18")
-		code = removeEnum(code, string.patescape"ULONG_MAX = 1.844674407371e+19")
-		code = removeEnum(code, string.patescape"LLONG_MAX = 9.2233720368548e+18")
-		code = removeEnum(code, string.patescape"LLONG_MIN = -9.2233720368548e+18")
-		code = removeEnum(code, string.patescape"LONG_LONG_MAX = 9.2233720368548e+18")
-		code = removeEnum(code, string.patescape"LONG_LONG_MIN = -9.2233720368548e+18")
-		--]]
+		code = removeEnum(code, 'SSIZE_MAX = 9223372036854775807')
+		code = removeEnum(code, 'QUAD_MAX = 9223372036854775807')
+		code = removeEnum(code, 'LONG_MAX = 9223372036854775807')
+		code = removeEnum(code, 'LLONG_MAX = 9223372036854775807')
+		code = removeEnum(code, 'LONG_LONG_MAX = 9223372036854775807')
+		code = removeEnum(code, 'OFF_MAX = 9223372036854775807')
 		code = table{
 			code,
 			[[
@@ -320,6 +374,8 @@ return wrapper
 		inc = '<stdio.h>',
 		out = 'OSX/c/stdio.lua',
 		final = function(code)
+			code = replace_SEEK(code)
+			code = removeEnum(code, '_USE_FORTIFY_LEVEL = 2')
 			code = code .. [[
 -- special case since in the browser app where I'm capturing fopen for remote requests and caching
 -- feel free to not use the returend table and just use ffi.C for faster access
@@ -447,59 +503,6 @@ return wrapper
 		end,
 	},
 
-	-- in list: Windows Linux OSX
-	{inc='<fcntl.h>', out='OSX/c/fcntl.lua'},
-
-	-- in list: Linux OSX
-	{
-		inc = '<pthread.h>',
-		out = 'OSX/c/pthread.lua',
-		final = function(code)
-			code = removeAttrAvailability(code)
-			code = fixEnumsAndDefineMacrosInterleaved(code)
-			return code
-		end,
-	},
-
-	-- in list: Linux OSX
-	{inc='<sched.h>', out='OSX/c/sched.lua'},
-
-	-- in list: Linux OSX
-	{
-		inc = '<utime.h>',
-		out = 'OSX/c/utime.lua',
-		final = function(code)
-			code = code .. [[
-return setmetatable({
-	struct_utimbuf = 'struct utimbuf',
-}, {
-	__index = ffi.C,
-})
-]]
-			return code
-		end,
-	},
-
-	-- in list: Windows Linux OSX
-	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua'},
-
-	-- in list: Linux OSX
-	-- has to go above <unistd.h>
-	{inc='<sys/select.h>', out='OSX/c/sys/select.lua'},
-
-	-- in list: Windows Linux OSX
-	{
-		inc = '<unistd.h>',
-		out = 'OSX/c/unistd.lua',
-		final = function(code)
-			-- for interchangeability with Windows ...
-			code = code .. [[
-return ffi.C
-]]
-			return code
-		end,
-	},
-
 	-- depends on <_types.h> <sys/_types/_timespec.h> <machine/_types.h>
 	-- in list: Windows Linux OSX
 	{
@@ -525,6 +528,119 @@ return statlib
 		end,
 	},
 
+	-- in list: Windows Linux OSX
+	{
+		inc='<fcntl.h>',
+		out='OSX/c/fcntl.lua',
+		final = function(code)
+			code = replace_SEEK(code)
+			-- these are in sys/stat and fcntl
+			code = safegsub(code, [[
+enum { S_IFMT = 0170000 };
+enum { S_IFIFO = 0010000 };
+enum { S_IFCHR = 0020000 };
+enum { S_IFDIR = 0040000 };
+enum { S_IFBLK = 0060000 };
+enum { S_IFREG = 0100000 };
+enum { S_IFLNK = 0120000 };
+enum { S_IFSOCK = 0140000 };
+enum { S_IFWHT = 0160000 };
+enum { S_IRWXU = 0000700 };
+enum { S_IRUSR = 0000400 };
+enum { S_IWUSR = 0000200 };
+enum { S_IXUSR = 0000100 };
+enum { S_IRWXG = 0000070 };
+enum { S_IRGRP = 0000040 };
+enum { S_IWGRP = 0000020 };
+enum { S_IXGRP = 0000010 };
+enum { S_IRWXO = 0000007 };
+enum { S_IROTH = 0000004 };
+enum { S_IWOTH = 0000002 };
+enum { S_IXOTH = 0000001 };
+enum { S_ISUID = 0004000 };
+enum { S_ISGID = 0002000 };
+enum { S_ISVTX = 0001000 };
+enum { S_ISTXT = 0001000 };
+enum { S_IREAD = 0000400 };
+enum { S_IWRITE = 0000200 };
+enum { S_IEXEC = 0000100 };
+]],
+		"]] require 'ffi.req' 'c.sys.stat' ffi.cdef[[\n"
+)
+			return code
+		end,
+	},
+
+	-- in list: Linux OSX
+	{inc='<sched.h>', out='OSX/c/sched.lua'},
+
+	-- in list: Linux OSX
+	{
+		inc = '<pthread.h>',
+		out = 'OSX/c/pthread.lua',
+		final = function(code)
+			code = removeAttrAvailability(code)
+			code = fixEnumsAndDefineMacrosInterleaved(code)
+
+			-- idk why this is duplicated ...
+			code = safegsub(code, string.patescape[[
+struct sched_param { int sched_priority; char __opaque[4]; };
+extern int sched_yield(void);
+extern int sched_get_priority_min(int);
+extern int sched_get_priority_max(int);
+]],
+				"]] require 'ffi.req' 'c.sched' ffi.cdef[[\n"
+			)
+			return code
+		end,
+	},
+
+	-- in list: Linux OSX
+	{
+		inc = '<utime.h>',
+		out = 'OSX/c/utime.lua',
+		final = function(code)
+			code = code .. [[
+return setmetatable({
+	struct_utimbuf = 'struct utimbuf',
+}, {
+	__index = ffi.C,
+})
+]]
+			return code
+		end,
+	},
+
+	-- in list: Windows Linux OSX
+	{inc='<sys/mman.h>', out='OSX/c/sys/mman.lua'},
+
+	-- in list: Linux OSX
+	-- has to go above <unistd.h>
+	{
+		inc='<sys/select.h>',
+		out='OSX/c/sys/select.lua',
+		final = function(code)
+			-- also in sys/time.h
+			code = removeEnum(code, 'FD_SETSIZE = 1024')
+			return code
+		end,
+	},
+
+	-- in list: Windows Linux OSX
+	{
+		inc = '<unistd.h>',
+		out = 'OSX/c/unistd.lua',
+		final = function(code)
+			code = replace_SEEK(code)
+			code = removeEnum(code, '_POSIX_THREAD_KEYS_MAX = 128')
+			-- for interchangeability with Windows ...
+			code = code .. [[
+return ffi.C
+]]
+			return code
+		end,
+	},
+
 	-- in list: Linux OSX
 	-- depends on <sys/_types/_timespec.h> <sys/_types/_fd_def.h> <machine/_types.h>
 	{
@@ -544,6 +660,23 @@ return statlib
 
 }:mapi(function(inc)
 	inc.os = 'OSX'
+
+	-- same as linux
+	local oldfinal = inc.final
+	inc.final = function(code)
+		--code = removeEnum(code, '__[_%w]* = [01]')
+		code = removeEnum(code, '__has_[_%w]* = [01]')
+		code = removeEnum(code, '__single = 1')
+		code = removeEnum(code, '__unsafe_indexable = 1')
+		code = removeEnum(code, '__null_terminated = 1')
+		code = removeEnum(code, '_[_%w]*_H = 1')
+		code = removeEnum(code, '_[_%w]*_H_ = 1')
+		code = removeEnum(code, '_[_%w]*_H__ = 1')
+		code = removeEnum(code, '_[_%w]*_T = 1')	-- tempting ...
+		code = removeEnum(code, '__APPLE_[_%w]* = 1')
+		if oldfinal then code = oldfinal(code) end
+		return code
+	end
 
 	-- system includes want to save all macros
 	inc.saveAllMacros = true
