@@ -68,6 +68,9 @@ enum { F_TEST = 3 };
 ]=],
 	},
 
+	-- used by <bits/timesize.h> <features.h>
+	{inc='<bits/wordsize.h>', out='Linux/c/bits/wordsize.lua'},
+
 	-- used by <bits/types.h> <features.h>
 	-- yes, bits/types.h does include this out of its way, even though features.h already did
 	{inc='<bits/timesize.h>', out='Linux/c/bits/timesize.lua'},
@@ -550,14 +553,15 @@ return setmetatable({
 	-- maybe a better fix would be to cull macros before enum-generation ...
 	local oldfinal = inc.final
 	inc.final = function(code)
-		code = removeEnum(code, '__[_%w]*_defined = 1')
+		--code = removeEnum(code, '__[_%w]*_defined = 1')
+		code = removeEnum(code, '__[_%w]* = [01]')
+		code = removeEnum(code, '_[_%w]*_H = 1')
 		if oldfinal then code = oldfinal(code) end
 		return code
 	end
 
 	-- system includes want to save all macros
-	-- but then we still have the same duplicate-macro problem ...
-	--inc.saveAllMacros = true
+	inc.saveAllMacros = true
 
 	return inc
 end)

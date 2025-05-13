@@ -863,6 +863,8 @@ then re-run it
 								macrosInOrder:remove(j)
 							end
 						end
+--DEBUG:print(tolua(incstack))
+--DEBUG:print('top', top.search, top.suppress, 'defining', k, v)
 						macros[k] = v
 						macrosInOrder:insert{[k] = v}
 					end
@@ -970,15 +972,16 @@ then re-run it
 										local previnc = select(2, includeList:find(nil, function(o) return o.inc == prevIncInfo.search end))
 --DEBUG:print('previous includeList entry?',previnc)
 										if not previnc then
+											--[[ TODO redunant? don't do this here and at the end ?
+											-- or do I need the prevIncludeInfos[] entries?
 											local newIncInfo = {
 												search = lastSearch,
 												line = i,
 												lua = path(inc.out),
 												inc = inc,
 											}
-
-											-- TODO don't do this here and at the end ?
-											--reportDups(newIncInfo, prevIncInfo, includePath)
+											reportDups(newIncInfo, prevIncInfo, includePath)
+											--]]
 										else
 											local reqpath = previnc.out:match'^(.*)%.lua$':gsub('/', '.')
 											-- ... but now this has the fif.os in it!
@@ -995,11 +998,15 @@ then re-run it
 												.."' ffi.cdef[["
 --..'\n...from: '..tolua(prevIncInfo)
 											)
-											incstack:last().suppress  = true
+											--incstack:last().suppress = true
 										end
 										--incstack:last().suppress  = true
 									end
+									-- hopefully not suppressing require()'d #define's too much ...
+									incstack:last().suppress  = true
 								end
+								-- too far
+								--incstack:last().suppress  = true
 							end
 						elseif flags[2] then
 							-- returning *to* a file (so the last file on the stack is now closed)
