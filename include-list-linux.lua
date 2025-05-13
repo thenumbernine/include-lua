@@ -11,7 +11,7 @@ local function remove_VA_LIST_DEFINED(code)
 end
 
 local function replace_SEEK(code)
-	-- unistd.h stdio.h fcntl.lua all define SEEK_*, so ...
+	-- unistd.h stdio.h fcntl.h all define SEEK_*, so ...
 	code = safegsub(code, [[
 enum { SEEK_SET = 0 };
 enum { SEEK_CUR = 1 };
@@ -19,7 +19,7 @@ enum { SEEK_END = 2 };
 ]],
 		"]] require 'ffi.req' 'c.bits.types.SEEK' ffi.cdef[[\n"
 	)
-	-- fcntl.lua unistd.lua have these:
+	-- fcntl.h unistd.h have these:
 	code = safegsub(code, [[
 enum { R_OK = 4 };
 enum { W_OK = 2 };
@@ -76,7 +76,15 @@ enum { F_TEST = 3 };
 	{inc='<bits/timesize.h>', out='Linux/c/bits/timesize.lua'},
 
 	-- used by everyone
-	{inc='<features.h>', out='Linux/c/features.lua'},
+	{
+		inc='<features.h>',
+		out='Linux/c/features.lua',
+		final = function(code)
+			-- also in bits/floatn.h
+			code = removeEnum(code, '__LDOUBLE_REDIRECTS_TO_FLOAT128_ABI = 0')
+			return code
+		end,
+	},
 
 -- TODO all these internal files need silentincs={'<features.h>'}
 -- because they all expect <features.h> to be alreayd included
@@ -113,7 +121,11 @@ enum { F_TEST = 3 };
 	{inc='<bits/types/sigset_t.h>', out='Linux/c/bits/types/sigset_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <signal.h> <stdlib.h>
-	{inc='<bits/pthreadtypes.h>', out='Linux/c/bits/pthreadtypes.lua', silentincs={'<features.h>'}},
+	{
+		inc='<bits/pthreadtypes.h>',
+		out='Linux/c/bits/pthreadtypes.lua',
+		silentincs={'<features.h>'},
+	},
 
 	-- used by <wchar.h> <stdio.h>
 	{inc='<bits/types/__mbstate_t.h>', out='Linux/c/bits/types/__mbstate_t.lua', silentincs={'<features.h>'}},
@@ -137,7 +149,16 @@ enum { F_TEST = 3 };
 	{inc='<bits/types/struct_timeval.h>', out='Linux/c/bits/types/struct_timeval.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdio.h> <stdlib.h>
-	{inc='<bits/floatn.h>', out='Linux/c/bits/floatn.lua', silentincs={'<features.h>'}},
+	{
+		inc='<bits/floatn.h>',
+		out='Linux/c/bits/floatn.lua',
+		silentincs={'<features.h>'},
+		final = function(code)
+			-- also in features.h
+			code = removeEnum(code, '__LDOUBLE_REDIRECTS_TO_FLOAT128_ABI = 0')
+			return code
+		end,
+	},
 
 	-- used by <pthread.h> <bits/posix1_lim.h>
 	{inc='<bits/pthread_stack_min-dynamic.h>', out='Linux/c/bits/pthread_stack_min-dynamic.lua', silentincs={'<features.h>'}},
@@ -164,44 +185,17 @@ ffi.cdef[[
 	},
 
 	-- used by <sys/stat.h> <fcntl.h>
-	-- never include directly
 	{
 		inc='<bits/stat.h>',
 		out='Linux/c/bits/stat.lua',
-		silentincs = {'<features.h>'},
-		forcecode = [=[
-local ffi = require 'ffi'
-ffi.cdef[[
-/* + BEGIN <bits/stat.h> /usr/include/x86_64-linux-gnu/bits/stat.h */
-/* ++ BEGIN <bits/types.h> /usr/include/x86_64-linux-gnu/bits/types.h */
-]] require 'ffi.req' 'c.bits.types' ffi.cdef[[
-/* ++ END <bits/types.h> /usr/include/x86_64-linux-gnu/bits/types.h */
-/* ++ BEGIN <bits/types/struct_timespec.h> /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h */
-]] require 'ffi.req' 'c.bits.types.struct_timespec' ffi.cdef[[
-/* ++ END <bits/types/struct_timespec.h> /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h */
-/* ++ BEGIN <bits/struct_stat.h> /usr/include/x86_64-linux-gnu/bits/struct_stat.h */
-struct stat
-  {
-    __dev_t st_dev;
-    __ino_t st_ino;
-    __nlink_t st_nlink;
-    __mode_t st_mode;
-    __uid_t st_uid;
-    __gid_t st_gid;
-    int __pad0;
-    __dev_t st_rdev;
-    __off_t st_size;
-    __blksize_t st_blksize;
-    __blkcnt_t st_blocks;
-    struct timespec st_atim;
-    struct timespec st_mtim;
-    struct timespec st_ctim;
-    __syscall_slong_t __glibc_reserved[3];
-  };
-/* ++ END <bits/struct_stat.h> /usr/include/x86_64-linux-gnu/bits/struct_stat.h */
-/* + END <bits/stat.h> /usr/include/x86_64-linux-gnu/bits/stat.h */
-]]
-]=],
+		macros={
+			'_SYS_STAT_H',	-- cheat the "don't include directly" warning
+		},
+		silentincs = {
+			'<features.h>',
+			'<bits/types.h>',
+			'<bits/types/struct_timespec.h>',
+		},
 	},
 
 	-- used by <pthread.h> <setjmp.h> <bits/types/struct___jmp_buf_tag.h>
@@ -346,7 +340,26 @@ return setmetatable({
 	-- and that comes with a giant can of worms of how i'm handling cdef numbers vs macro defs vs lua numbers ...
 	-- mind you I could just make the warning: output into a comment
 	--  and there would be no need for manual manipulation here
-	{inc='<limits.h>', out='Linux/c/limits.lua'},
+	{
+		inc='<limits.h>',
+		out='Linux/c/limits.lua',
+		final = function(code)
+			code = removeEnum(code, 'LONG_MAX = 0x7fffffffffffffff')
+			code = removeEnum(code, 'LLONG_MAX = 0x7fffffffffffffff')
+			code = code .. [[
+
+-- add in values that can't be ffi.cdef enum'd
+local wrapper = setmetatable({}, {__index=ffi.C})
+wrapper.LONG_MAX = 0x7FFFFFFFFFFFFFFFLL
+wrapper.LONG_MIN = -wrapper.LONG_MAX - 1LL
+wrapper.ULONG_MAX = 0xFFFFFFFFFFFFFFFFULL
+wrapper.LLONG_MAX = wrapper.LONG_MAX
+wrapper.LLONG_MIN = wrapper.LONG_MIN
+return wrapper
+]]
+			return code
+		end,
+	},
 
 	-- in list: Windows Linux OSX
 	-- depends: features.h, bits/types/__sigset_t.h
@@ -400,7 +413,10 @@ return setmetatable({}, {
 	},
 
 	-- in list: Linux OSX
-	{inc='<signal.h>', out='Linux/c/signal.lua'},
+	{
+		inc='<signal.h>',
+		out='Linux/c/signal.lua',
+	},
 
 		------------ ISO/IEC 9899:1990/Amd.1:1995 ------------
 
@@ -410,6 +426,8 @@ return setmetatable({}, {
 		inc = '<wchar.h>',
 		out = 'Linux/c/wchar.lua',
 		final = function(code)
+			code = removeEnum(code, 'WCHAR_MAX = 0x7fffffff')
+			code = removeEnum(code, '__WCHAR_MAX = 0x7fffffff')
 			code = remove_VA_LIST_DEFINED(code)
 			return code
 		end,
@@ -438,6 +456,8 @@ return setmetatable({}, {
 		inc = '<stdint.h>',
 		out = 'Linux/c/stdint.lua',
 		final = function(code)
+			code = removeEnum(code, 'WCHAR_MAX = 0x7fffffff')
+			code = removeEnum(code, '__WCHAR_MAX = 0x7fffffff')
 			return code
 		end,
 	},
@@ -464,6 +484,27 @@ return setmetatable({}, {
 		out = 'Linux/c/fcntl.lua',
 		final = function(code)
 			code = replace_SEEK(code)
+
+			-- in fcntl.h and sys/stat.h
+			code = safegsub(code, [[
+enum { S_IFMT = 0170000 };
+enum { S_IFDIR = 0040000 };
+enum { S_IFCHR = 0020000 };
+enum { S_IFBLK = 0060000 };
+enum { S_IFREG = 0100000 };
+enum { S_IFIFO = 0010000 };
+enum { S_IFLNK = 0120000 };
+enum { S_IFSOCK = 0140000 };
+enum { S_ISUID = 04000 };
+enum { S_ISGID = 02000 };
+enum { S_ISVTX = 01000 };
+enum { S_IRUSR = 0400 };
+enum { S_IWUSR = 0200 };
+enum { S_IXUSR = 0100 };
+]],
+		"]] require 'ffi.req' 'c.sys.stat' ffi.cdef[[\n"
+)
+
 			-- abstraction used by lfs_ffi
 			code = code .. [[
 return ffi.C
@@ -551,10 +592,12 @@ return setmetatable({
 	-- rule of thumb for linux gcc
 	-- to get rid of the __*_defined = 1 defines => enums
 	-- maybe a better fix would be to cull macros before enum-generation ...
+	-- TODO when handing off from , say bits/stat.h to fcntl.h, these do need to be saved!
 	local oldfinal = inc.final
 	inc.final = function(code)
-		--code = removeEnum(code, '__[_%w]*_defined = 1')
-		code = removeEnum(code, '__[_%w]* = [01]')
+		--code = removeEnum(code, '__[_%w]* = [01]')
+		code = removeEnum(code, '__[_%w]*_defined = 1')
+		code = removeEnum(code, '__have_[_%w]* = 1')
 		code = removeEnum(code, '_[_%w]*_H = 1')
 		if oldfinal then code = oldfinal(code) end
 		return code

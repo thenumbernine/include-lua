@@ -829,6 +829,7 @@ then re-run it
 	local lastSearch
 	local incstack = table()	-- .path, .search
 	local macros = {}
+	local allMacrosEvenSuppressedOnes = {}
 	local macrosInOrder = table()
 	do
 		local newlines = table()
@@ -836,8 +837,16 @@ then re-run it
 		assert(xpcall(function()
 			for i,l in ipairs(lines) do
 				saveline = i
+
 				if l == '' then
 				elseif l:find'^#define' then
+
+					-- we actually do need to do macro-evaluation
+					do
+						local k,v = l:match'^#define%s+([_%a][_%w]*)%s*(.-)$'
+						allMacrosEvenSuppressedOnes[k] = v
+					end
+
 					local top = incstack:last()
 
 					if not top	-- gcc linux doesn't specify the 'enter' include flag, i.e. no `# 0 "<stdin>" 1` like clang does.
@@ -871,6 +880,7 @@ then re-run it
 				elseif l:find'^#undef' then
 					local k = l:match'^#undef%s+([_%a][_%w]*)$'
 					macros[k] = nil
+					allMacrosEvenSuppressedOnes[k] = nil
 					for j=#macrosInOrder,1,-1 do
 						if next(macrosInOrder[j]) == k then
 							macrosInOrder:remove(j)
@@ -1065,7 +1075,19 @@ then re-run it
 		local insertLoc = #lines
 		assert.eq(lines[insertLoc], endLine)
 		for _,kv in ipairs(macrosInOrder) do
-			local k,origv = next(kv)
+			local k, origv = next(kv)
+
+			-- sometimes a macro is defined as another
+			-- and expects the preprocessor to resolve all definitions ...
+			-- TODO smh maybe I do need my C-preprocessor after all ...
+			-- TODO smh now I need to save suppressed macros also ...
+			while true do
+				local newv = allMacrosEvenSuppressedOnes[origv]
+				if newv == origv then break end
+				if not newv then break end
+				origv = newv
+			end
+
 			local v
 			if origv == '' then
 				v = '1'
