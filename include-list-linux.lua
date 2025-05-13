@@ -461,6 +461,10 @@ return setmetatable({}, {
 		out = 'Linux/c/fcntl.lua',
 		final = function(code)
 			code = replace_SEEK(code)
+			-- abstraction used by lfs_ffi
+			code = code .. [[
+return ffi.C
+]]
 			return code
 		end,
 	},
