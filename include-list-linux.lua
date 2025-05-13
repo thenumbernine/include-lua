@@ -27,6 +27,8 @@ enum { X_OK = 1 };
 enum { F_OK = 0 };
 ]],
 		'')
+	-- goes with lockf() which is in unistd.h ... and fcntl.h
+	-- man says lockf() goes with unistd.h
 	code = safegsub(code, [[
 enum { F_ULOCK = 0 };
 enum { F_LOCK = 1 };
@@ -66,72 +68,104 @@ enum { F_TEST = 3 };
 ]=],
 	},
 
+	-- used by <bits/types.h> <features.h>
+	-- yes, bits/types.h does include this out of its way, even though features.h already did
+	{inc='<bits/timesize.h>', out='Linux/c/bits/timesize.lua'},
+
+	-- used by everyone
+	{inc='<features.h>', out='Linux/c/features.lua'},
+
+-- TODO all these internal files need silentincs={'<features.h>'}
+-- because they all expect <features.h> to be alreayd included
+-- but silentincs is messing up ...
+
 	-- used by <time.h> <ctype.h>
 	{inc='<bits/types.h>', out='Linux/c/bits/types.lua'},
 
 	-- used by <string.h> <ctype.h>
-	{inc='<bits/types/locale_t.h>', out='Linux/c/bits/types/locale_t.lua'},
+	{inc='<bits/types/locale_t.h>', out='Linux/c/bits/types/locale_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdlib.h> <time.h>
-	{inc='<bits/types/clock_t.h>', out='Linux/c/bits/types/clock_t.lua'},
+	{inc='<bits/types/clock_t.h>', out='Linux/c/bits/types/clock_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdlib.h> <time.h>
-	{inc='<bits/types/clockid_t.h>', out='Linux/c/bits/types/clockid_t.lua'},
+	{inc='<bits/types/clockid_t.h>', out='Linux/c/bits/types/clockid_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdlib.h> <time.h>
-	{inc='<bits/types/time_t.h>', out='Linux/c/bits/types/time_t.lua'},
+	{inc='<bits/types/time_t.h>', out='Linux/c/bits/types/time_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdlib.h> <time.h>
-	{inc='<bits/types/timer_t.h>', out='Linux/c/bits/types/timer_t.lua'},
+	{inc='<bits/types/timer_t.h>', out='Linux/c/bits/types/timer_t.lua', silentincs={'<features.h>'}},
+
+	-- used by <ctype.h> <bits/types/struct_timespec.h>
+	{inc='<bits/endian.h>', out='Linux/c/bits/endian.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdlib.h> <time.h>
-	{inc='<bits/types/struct_timespec.h>', out='Linux/c/bits/types/struct_timespec.lua'},
+	{inc='<bits/types/struct_timespec.h>', out='Linux/c/bits/types/struct_timespec.lua', silentincs={'<features.h>'}},
 
 	-- used by <setjmp.h> <stdlib.h>
-	{inc='<bits/types/__sigset_t.h>', out='Linux/c/bits/types/__sigset_t.lua'},
+	{inc='<bits/types/__sigset_t.h>', out='Linux/c/bits/types/__sigset_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <signal.h> <stdlib.h>
-	{inc='<bits/types/sigset_t.h>', out='Linux/c/bits/types/sigset_t.lua'},
+	{inc='<bits/types/sigset_t.h>', out='Linux/c/bits/types/sigset_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <signal.h> <stdlib.h>
-	{
-		inc='<bits/pthreadtypes.h>',
-		out='Linux/c/bits/pthreadtypes.lua',
-		-- <features.h> are needed for a few <bits/*> includes to get the right macros ...
-		silentincs = {
-			'<features.h>',
-		},
-	},
+	{inc='<bits/pthreadtypes.h>', out='Linux/c/bits/pthreadtypes.lua', silentincs={'<features.h>'}},
 
 	-- used by <wchar.h> <stdio.h>
-	{inc='<bits/types/__mbstate_t.h>', out='Linux/c/bits/types/__mbstate_t.lua'},
+	{inc='<bits/types/__mbstate_t.h>', out='Linux/c/bits/types/__mbstate_t.lua', silentincs={'<features.h>'}},
 
 	-- used by <wchar.h> <stdio.h>
-	{inc='<bits/types/__FILE.h>', out='Linux/c/bits/types/__FILE.lua'},
+	{inc='<bits/types/__FILE.h>', out='Linux/c/bits/types/__FILE.lua', silentincs={'<features.h>'}},
 
 	-- used by <wchar.h> <stdio.h>
-	{inc='<bits/types/FILE.h>', out='Linux/c/bits/types/FILE.lua'},
+	{inc='<bits/types/FILE.h>', out='Linux/c/bits/types/FILE.lua', silentincs={'<features.h>'}},
 
 	-- used by <inttypes.h> <stdlib.h>
-	{inc='<bits/stdint-intn.h>', out='Linux/c/bits/stdint-intn.lua'},
+	{inc='<bits/stdint-intn.h>', out='Linux/c/bits/stdint-intn.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdint.h> <inttypes.h>
-	{inc='<bits/stdint-uintn.h>', out='Linux/c/bits/stdint-uintn.lua'},
+	{inc='<bits/stdint-uintn.h>', out='Linux/c/bits/stdint-uintn.lua', silentincs={'<features.h>'}},
 
 	-- used by <stdint.h> <inttypes.h>
-	{inc='<bits/stdint-least.h>', out='Linux/c/bits/stdint-least.lua'},
+	{inc='<bits/stdint-least.h>', out='Linux/c/bits/stdint-least.lua', silentincs={'<features.h>'}},
 
 	-- used by <sys/select.h> <stdlib.h>
-	{inc='<bits/types/struct_timeval.h>', out='Linux/c/bits/types/struct_timeval.lua'},
+	{inc='<bits/types/struct_timeval.h>', out='Linux/c/bits/types/struct_timeval.lua', silentincs={'<features.h>'}},
+
+	-- used by <stdio.h> <stdlib.h>
+	{inc='<bits/floatn.h>', out='Linux/c/bits/floatn.lua', silentincs={'<features.h>'}},
+
+	-- used by <pthread.h> <bits/posix1_lim.h>
+	{inc='<bits/pthread_stack_min-dynamic.h>', out='Linux/c/bits/pthread_stack_min-dynamic.lua', silentincs={'<features.h>'}},
+
+	-- used by <dirent.h> <limits.h>
+	{inc='<bits/posix1_lim.h>', out='Linux/c/bits/posix1_lim.lua', silentincs={'<features.h>'}},
+
+	-- used by <stdlib.h> <string.h>
+	-- never include dirctly
+	{
+		inc = '<bits/libc-header-start.h>',
+		out = 'Linux/c/bits/libc-header-start.lua',
+		silentincs = {'<features.h>'},
+		forcecode = [=[
+local ffi = require 'ffi'
+ffi.cdef[[
+/* ++ BEGIN <bits/libc-header-start.h> /usr/include/x86_64-linux-gnu/bits/libc-header-start.h */
+/* +++ BEGIN <features.h> /usr/include/features.h */
+]] require 'ffi.req' 'c.features' ffi.cdef[[
+/* +++ END <features.h> /usr/include/features.h */
+/* ++ END <bits/libc-header-start.h> /usr/include/x86_64-linux-gnu/bits/libc-header-start.h */
+]]
+]=],
+	},
 
 	-- used by <sys/stat.h> <fcntl.h>
 	-- never include directly
 	{
 		inc='<bits/stat.h>',
 		out='Linux/c/bits/stat.lua',
-		silentincs = {
-			'<features.h>',
-		},
+		silentincs = {'<features.h>'},
 		forcecode = [=[
 local ffi = require 'ffi'
 ffi.cdef[[
@@ -173,8 +207,7 @@ struct stat
 	{
 		inc='<bits/setjmp.h>',
 		out='Linux/c/bits/setjmp.lua',
-		--dontGen = true,	-- for those `#error "Never include this directly!"` files ...
-		-- or just force-output the cut section:
+		silentincs = {'<features.h>'},
 		forcecode = [=[
 local ffi = require 'ffi'
 ffi.cdef[[
@@ -194,6 +227,7 @@ typedef long int __jmp_buf[8];
 	{
 		inc='<bits/types/struct___jmp_buf_tag.h>',
 		out='Linux/c/bits/types/struct___jmp_buf_tag.lua',
+		silentincs = {'<features.h>'},
 		forcecode = [=[
 local ffi = require 'ffi'
 ffi.cdef[[
@@ -219,6 +253,7 @@ struct __jmp_buf_tag
 	{
 		inc='<bits/mathcalls-helper-functions.h>',
 		out='Linux/c/bits/mathcalls-helper-functions.lua',
+		silentincs = {'<features.h>'},
 		-- this has a bunch of __MATHDECL_ALIAS macros that expand into function defs ...
 		-- if I macro it to be nothing  i.e. macros={'__MATHDECL_ALIAS(...)='}
 		--  then the __attribute__'s are left.
@@ -351,9 +386,12 @@ return setmetatable({}, {
 			-- #defines are spit out at the end of the file
 			-- but here in <math.h> they are alreayd outputted as enums ... welp most are at least ...
 			-- so we remove them:
-			local eof = code:find(string.patescape('/* + END <math.h>'))
-			code = code:sub(1,eof-1)
-				..code:sub(eof):gsub('enum { ', '//%0')
+			code = code:gsub('enum { M_', '//%0')
+			code = removeEnum(code, 'FP_NORMAL = 4')
+			code = removeEnum(code, 'FP_SUBNORMAL = 3')
+			code = removeEnum(code, 'FP_ZERO = 2')
+			code = removeEnum(code, 'FP_INFINITE = 1')
+			code = removeEnum(code, 'FP_NAN = 0')
 			return code
 		end,
 	},
@@ -502,7 +540,7 @@ return setmetatable({
 
 }:mapi(function(inc)
 	inc.os = 'Linux' -- meh?  just have all these default for -nix systems?
-	
+
 	-- rule of thumb for linux gcc
 	-- to get rid of the __*_defined = 1 defines => enums
 	-- maybe a better fix would be to cull macros before enum-generation ...
@@ -512,6 +550,10 @@ return setmetatable({
 		if oldfinal then code = oldfinal(code) end
 		return code
 	end
+
+	-- system includes want to save all macros
+	-- but then we still have the same duplicate-macro problem ...
+	--inc.saveAllMacros = true
 
 	return inc
 end)

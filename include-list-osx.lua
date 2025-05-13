@@ -14,7 +14,7 @@ local function removeAttrAvailability(code)
 end
 
 return table{
-	
+
 	----------------------- INTERNALLY REQUESTED: -----------------------
 
 -- They only exist to replace duplicate-generated ctypes
@@ -544,5 +544,9 @@ return statlib
 
 }:mapi(function(inc)
 	inc.os = 'OSX'
+
+	-- system includes want to save all macros
+	inc.saveAllMacros = true
+
 	return inc
 end)

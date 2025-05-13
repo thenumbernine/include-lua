@@ -480,5 +480,9 @@ typedef intptr_t ssize_t;
 
 }:mapi(function(inc)
 	inc.os = 'Windows'
+
+	-- system includes want to save all macros
+	inc.saveAllMacros = true
+
 	return inc
 end)

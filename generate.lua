@@ -661,7 +661,7 @@ insert the lines above into a table auto-serialized as 'include-list-osx-interna
 make sure to insert it as high as possible but beneath both dependencies
 then re-run it
 --]]
-		os.exit(1)
+		error'here'
 	end
 
 	-- fp = current file path (used to report errors, not for file IO)
@@ -755,7 +755,8 @@ then re-run it
 	-- for all the includes we want to keep macros for, get a mapping from the include directive to the absolute path
 	-- this way we can find the path in the preprocessor output
 	local searchForPath = {}
-	for _,search in ipairs(luaIncMacroFiles) do
+	local pathForSearch = {}
+	for _,search in ipairs(luaBindingIncFiles) do
 		-- TODO best way to get include lookup
 		-- This outputs the include graph ... but all I need is the first result.
 		local pinc = select(2, includeList:find(nil, function(o) return o.inc == search end))
@@ -776,7 +777,18 @@ then re-run it
 				..'\noutput: '..out
 				..'\ncmd: '..cmd)
 		end
-		searchForPath[line:sub(3)] = search
+		local fn = line:sub(3)
+		searchForPath[fn] = search
+		pathForSearch[search] = fn
+	end
+
+	if ffi.os == 'Linux'
+	and table(inc.silentincs):find'<features.h'
+	and #string.trim(io.readproc('grep features.h "'..pathForSearch[inc.inc]'"')) > 0
+	then
+		print'!!!!!! DANGER !!!!!!'
+		print'you both silentinc and regular-#include <features.h>'
+		print'!!!!!! DANGER !!!!!!'
 	end
 
 	-- 2) run preprocessor on source file
@@ -832,10 +844,16 @@ then re-run it
 					or top.path == '<built-in>'
 					or top.path == '<command line>'	-- clang
 					or top.path == '<command-line>'	-- gcc
+					-- don't save include macros because they should be in the included file already
+					or top.suppress
 					-- if the file isn't in our list of requested files to generate content for ...
 					-- TODO on jpeg this is filtering out too many macros ...
-					or not luaIncMacroFiles:find(searchForPath[top.path])
-					then
+					or not (
+						-- system includes want all macros, 3rd party includes only want their own macros
+						-- so this is a cheap fix for now:
+						inc.saveAllMacros
+						or luaIncMacroFiles:find(top.search)
+					) then
 						-- don't save builtins
 						-- in fact TODO only save inc.inc + inc.moreincs + inc.macroincs
 					else
@@ -880,7 +898,8 @@ then re-run it
 						lastSearch = string.trim(lastSearch)
 						lastSearch =
 							lastSearch:sub(1,1)
-							..lastSearch:sub(2,-2)..'$include_next'
+							..lastSearch:sub(2,-2)
+								-- ..'$include_next'	-- suffix still appearing on the END of the first include comment ...
 							..lastSearch:sub(-1)
 					end
 				elseif l:find'^#pragma' then
@@ -936,13 +955,20 @@ then re-run it
 								-- if the #include file has already been defined ...
 								-- then just insert it here
 								local prevIncInfo = prevIncludeInfos[includePath]
-								if prevIncInfo and #incstack > 1 then	-- don't use ourselves
+--DEBUG:print('CHECKING PREVIOUS INCLUDE FOR ', includePath, prevIncInfo , wasSuppressed )
+								if prevIncInfo
+								and not (
+									-- don't use ourselves
+									#incstack == 1 and incstack[1].search == inc.inc
+								)
+								then
 									if not wasSuppressed then
 										-- prevIncInfo.filename = the duplicated tree
 										-- prevIncInfo.search = what is #include'd to generate that
 										-- ... then we have to find in all includeList for prevIncInfo.search
 										-- ... then we put its .out here
 										local previnc = select(2, includeList:find(nil, function(o) return o.inc == prevIncInfo.search end))
+--DEBUG:print('previous includeList entry?',previnc)
 										if not previnc then
 											local newIncInfo = {
 												search = lastSearch,
@@ -951,7 +977,8 @@ then re-run it
 												inc = inc,
 											}
 
-											reportDups(newIncInfo, prevIncInfo, includePath)
+											-- TODO don't do this here and at the end ?
+											--reportDups(newIncInfo, prevIncInfo, includePath)
 										else
 											local reqpath = previnc.out:match'^(.*)%.lua$':gsub('/', '.')
 											-- ... but now this has the fif.os in it!
@@ -992,8 +1019,14 @@ then re-run it
 										-- but it'd be better to just not spit them out at all
 										-- so if our END matches the prev line's BEGIN then remove both
 										local beginLine = '/* '..('+'):rep(#incstack)..' BEGIN '..search..' '..top.path..' */'
-										if newlines:last() == beginLine then
-										--if false then
+										--if newlines:last() == beginLine then
+										-- maybe it's a bad idea since
+										-- it is screwing up on files that have only macros,
+										-- because their macros go after their END,
+										-- so they look empty to this test ...
+										-- or I can just put the macros inside the END block ...
+										-- but for that reason I still need to keep the single-line END around, to find where to insert the  macros ...
+										if false then
 											newlines[#newlines] = nil
 										else
 											newlines:insert('/* '..('+'):rep(#incstack)..' END '..search..' '..top.path..' */')
@@ -1019,31 +1052,39 @@ then re-run it
 	end
 
 	-- [[ append define's
-	for _,kv in ipairs(macrosInOrder) do
-		local k,origv = next(kv)
-		local v
-		if origv == '' then
-			v = '1'
-		else
-			vnumstr = tonumber(v)
-			if vnumstr then
-				v = origv
+	-- TODO make sure they go inside the END of the file!
+	do
+		local endLine = '/* + END '..inc.inc..' '..pathForSearch[inc.inc]..' */'
+		local insertLoc = #lines
+		assert.eq(lines[insertLoc], endLine)
+		for _,kv in ipairs(macrosInOrder) do
+			local k,origv = next(kv)
+			local v
+			if origv == '' then
+				v = '1'
 			else
-				for _,suffix in ipairs(cNumberSuffixes) do
-					vnumstr = origv:lower():match('(.*)'..suffix..'$')
-					if vnumstr
-					and tonumber(vnumstr)
-					then
-						--v = tostring((assert(tonumber(vnumstr))))	-- use it as is
-						v = vnumstr	-- use as is but truncated ... this messes up int64's outside the range of double ...
+				vnumstr = tonumber(v)
+				if vnumstr then
+					v = origv
+				else
+					for _,suffix in ipairs(cNumberSuffixes) do
+						vnumstr = origv:lower():match('(.*)'..suffix..'$')
+						if vnumstr
+						and tonumber(vnumstr)
+						then
+							--v = tostring((assert(tonumber(vnumstr))))	-- use it as is
+							v = vnumstr	-- use as is but truncated ... this messes up int64's outside the range of double ...
+						end
 					end
 				end
 			end
-		end
-		if v then
-			lines:insert('enum { '..k..' = '..v..' };')
-		else
-			lines:insert('/* #define '..k..' '..origv..' ### define is not number */')
+			if v then
+				lines:insert(insertLoc, 'enum { '..k..' = '..v..' };')
+			else
+				lines:insert(insertLoc, '/* #define '..k..' '..origv..' ### define is not number */')
+			end
+			-- keep insertions in-order
+			insertLoc = insertLoc + 1
 		end
 	end
 	--]]
