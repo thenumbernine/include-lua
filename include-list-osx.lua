@@ -567,6 +567,10 @@ enum { S_IEXEC = 0000100 };
 ]],
 		"]] require 'ffi.req' 'c.sys.stat' ffi.cdef[[\n"
 )
+			-- abstraction used by lfs_ffi
+			code = code .. [[
+return ffi.C
+]]
 			return code
 		end,
 	},
