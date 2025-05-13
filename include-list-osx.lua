@@ -686,6 +686,13 @@ return ffi.C
 		code = removeEnum(code, '_[_%w]*_H__ = 1')
 		code = removeEnum(code, '_[_%w]*_T = 1')	-- tempting ...
 		code = removeEnum(code, '__APPLE_[_%w]* = 1')
+
+		-- this is everywhere
+		code = safegsub(code,
+			'__asm%b()', function(s)
+				return (s:gsub(" ", ''))
+			end)
+
 		if oldfinal then code = oldfinal(code) end
 		return code
 	end
