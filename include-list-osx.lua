@@ -690,7 +690,7 @@ return ffi.C
 		-- this is everywhere
 		code = safegsub(code,
 			'__asm%b()', function(s)
-				return (s:gsub(" ", ''))
+				return (s:gsub('" "', ''))
 			end)
 
 		if oldfinal then code = oldfinal(code) end
