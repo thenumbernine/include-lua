@@ -690,7 +690,11 @@ return ffi.C
 		-- this is everywhere
 		code = safegsub(code,
 			'__asm%b()', function(s)
-				return (s:gsub('" "', ''))
+				return (
+					s
+					:gsub('"_"', '')	-- get rid of the first underscore I guess?
+					:gsub('" "', '')
+				)
 			end)
 
 		if oldfinal then code = oldfinal(code) end
