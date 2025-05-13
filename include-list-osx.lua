@@ -654,7 +654,15 @@ return ffi.C
 
 	-- in list: Windows Linux OSX
 	-- depends on <_types.h> <sys/_types/_fd_def.h> <machine/_types.h> <machine/endian.h>
-	{inc='<sys/types.h>', out='OSX/c/sys/types.lua'},
+	{
+		inc='<sys/types.h>',
+		out='OSX/c/sys/types.lua',
+		final = function(code)
+			-- also in sys/time.h and sys/types.h and sys/select.h
+			code = removeEnum(code, 'FD_SETSIZE = 1024')
+			return code
+		end,
+	},
 
 	----------------------- OS-SPECIFIC & EXTERNALLY REQUESTED BY 3RD PARTY LIBRARIES: -----------------------
 
