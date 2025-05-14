@@ -304,13 +304,21 @@ struct __jmp_buf_tag
 		final = function(code)
 			-- manually add the 'errno' macro at the end:
 			code = code .. [[
-return setmetatable({
+local wrapper
+wrapper = setmetatable({
 	errno = function()
 		return ffi.C.__errno_location()[0]
+	end,
+	str = function()
+		require 'ffi.req' 'c.string'	-- strerror
+		local sp = ffi.C.strerror(wrapper.errno())
+		if sp == nil then return '(null)' end
+		return ffi.string(sp)
 	end,
 }, {
 	__index = ffi.C,
 })
+return wrapper
 ]]
 			return code
 		end,
