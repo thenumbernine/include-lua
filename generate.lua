@@ -131,6 +131,8 @@ end
 -- Returns true if the current file we're in is one of the ones we wanted to spit out bindigns for.
 -- Used to determine what files to save and output enum-macros for, versus which to just save and only use for preprocessing.
 function ThisPreproc:luaWithinAGenerateFile()
+	if self.saveAllMacros then return true end
+	if not self.luaIncMacroFiles then return true end	--  when defining builtins, luaIncMacroFiles isn't defined yet
 	local cur = self.includeStack:last()
 	for _,toInc in ipairs(self.luaIncMacroFiles) do
 		-- TODO cache this search result?
@@ -283,6 +285,9 @@ end
 local function preprocessWithLuaPreprocessor(inc)
 
 	local preproc = ThisPreproc()
+
+	-- start out saving all (builtin & system) macros
+	preproc.saveAllMacros = true
 
 	-- don't even include these
 	local skipincs = table()
@@ -505,6 +510,7 @@ local function preprocessWithLuaPreprocessor(inc)
 
 	preproc.luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
 	preproc.luaIncMacroFiles = table(preproc.luaBindingIncFiles):append(inc.macroincs)
+	preproc.saveAllMacros = inc.saveAllMacros
 
 	for _,rest in ipairs(skipincs) do
 		-- TODO this code is also in preproc.lua in #include filename resolution ...
@@ -1164,5 +1170,10 @@ path'~before-final.h':write(code)
 	return code
 end
 
-return preprocessWithCompiler
---return preprocessWithLuaPreprocessor
+if ffi.os == 'Windows' then
+	-- use the old way with my pure-lua preprocessor
+	return preprocessWithLuaPreprocessor
+else
+	-- new way, just parse gcc -E
+	return preprocessWithCompiler
+end
