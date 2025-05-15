@@ -1309,12 +1309,16 @@ return ffi.load '/usr/lib/libmono-2.0.so'
 	},
 
 	{
+		-- brew install molten-vk
 		inc = '<vulkan/vulkan_core.h>',
 		out = 'vulkan.lua',
-		includedirs = {
-			'/usr/include/vulkan',
-			'/usr/include/vk_video',
-		},
+		includedirs = ffi.os == 'Linux' and {
+				'/usr/include/vulkan',
+				'/usr/include/vk_video',
+			} or ffi.os == 'OSX' and {
+				'/usr/local/opt/molten-vk/libexec/include/vulkan',
+				'/usr/local/opt/molten-vk/libexec/include/vk_video',
+			} or nil,
 		final = function(code)
 			local postdefs = table()
 			code = code:gsub('static const (%S+) (%S+) = ([0-9x]+)ULL;\n',
