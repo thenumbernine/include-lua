@@ -506,6 +506,13 @@ return wrapper
 			code = string.split(code, '\n'):filter(function(l)
 				return not l:find'_b%('
 			end):concat'\n'
+
+			-- "invalid pack directive"
+			code = safegsub(code, [[
+#pragma pack(4)
+#pragma pack()
+]], '')
+
 			return code
 		end,
 	},
