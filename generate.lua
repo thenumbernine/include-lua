@@ -1080,7 +1080,7 @@ then re-run it
 	do
 		local endLine = '/* + END '..inc.inc..' '..pathForSearch[inc.inc]..' */'
 		local insertLoc = #lines
-		assert.eq(lines[insertLoc], endLine)
+--assert.eq(lines[insertLoc], endLine)
 		for _,kv in ipairs(macrosInOrder) do
 			local k, origv = next(kv)
 

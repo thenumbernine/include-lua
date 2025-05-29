@@ -542,7 +542,7 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		inc = '<cimgui.h>',
 		out = 'cimgui.lua',
 		moreincs = {
-			'<imgui_impl_sdl2.h>',
+			'<imgui_impl_sdl3.h>',
 			'<imgui_impl_opengl3.h>',
 		},
 		silentincs = {
@@ -558,7 +558,7 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 			'"imgui.h"',
 		},	-- full of C++ so don't include it
 		includedirs = {
-			'/usr/local/include/imgui-1.90.5dock',
+			'/usr/local/include/imgui-1.91.9dock',
 		},
 		macros = {
 			'CIMGUI_DEFINE_ENUMS_AND_STRUCTS',
@@ -578,7 +578,7 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 			-- looks like in the backend file there's one default parameter value ...
 			code = safegsub(code, 'glsl_version = nullptr', 'glsl_version')
 
-			code = safegsub(code, 'enum ImGui_ImplSDL2_GamepadMode {([^}]-)};', 'typedef enum {%1} ImGui_ImplSDL2_GamepadMode;')
+			code = safegsub(code, 'enum ImGui_ImplSDL3_GamepadMode {([^}]-)};', 'typedef enum {%1} ImGui_ImplSDL3_GamepadMode;')
 			code = safegsub(code, string.patescape'manual_gamepads_array = ((void *)0)', 'manual_gamepads_array')
 			code = safegsub(code, string.patescape'manual_gamepads_count = -1', 'manual_gamepads_count')
 
