@@ -572,7 +572,7 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 				..string.patescape'typedef union SDL_Event SDL_Event;',
 
 				-- simultaneously insert require to ffi/sdl.lua
-				"]] require 'ffi.req' 'sdl2' ffi.cdef[["
+				"]] require 'sdl' ffi.cdef[["
 			)
 
 			-- looks like in the backend file there's one default parameter value ...
