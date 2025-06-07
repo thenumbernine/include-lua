@@ -541,10 +541,13 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		-- and OpenGL i put them in OS-specific place
 		inc = '<cimgui.h>',
 		out = 'cimgui.lua',
+		--[[ I think these go on to include imgui.h so maybe it's best to just manually insert these 10 lines or so
 		moreincs = {
 			'<imgui_impl_sdl3.h>',
 			'<imgui_impl_opengl3.h>',
 		},
+		--]]
+		--[[
 		silentincs = {
 			-- include these but don't use them ... hmm ...
 			-- quotes cuz within its own framework it uses quotes
@@ -557,6 +560,7 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 			'<imgui.h>',
 			'"imgui.h"',
 		},	-- full of C++ so don't include it
+		--]]
 		includedirs = {
 			'/usr/local/include/imgui-1.91.9dock',
 		},
