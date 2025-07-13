@@ -599,7 +599,7 @@ So here's my attempt to just use gcc -E and transform the output into my preproc
 local function preprocessWithCompiler(inc)
 
 	print()
-	print('GENERATING '..inc.out)
+	print('GENERATING '..tostring(inc.out))
 
 	-- fair warning, I'm testing this on clang
 	assert(os.execute'gcc --version > /dev/null 2>&1', "failed to find gcc")	-- make sure we have gcc
@@ -716,18 +716,21 @@ then re-run it
 	-- FOR EVERY SINGLE FILE, THAT'S O(N^2)
 	-- how about doing this as we go too?
 	-- but that'd screw up for one-off files...
-	local incIndex = assert(includeList:find(inc))
-	for i=1,incIndex-1 do
-		local pinc = includeList[i]
-		local fp = path(pinc.out)
-		if not outdir(fp):exists() then
-			print('!!! '..fp.." doesn't exist - can't compare like include trees")
-		else
+	local incIndex = includeList:find(inc)
+	if not incIndex then
+		io.stderr:write"NOTICE - I couldn't find the include file in the master list -- ffi.req-inserting won't work.\n"
+	else
+		for i=1,incIndex-1 do
+			local pinc = includeList[i]
+			local fp = path(pinc.out)
+			if not outdir(fp):exists() then
+				print('!!! '..fp.." doesn't exist - can't compare like include trees")
+			else
 --DEBUG:print("checkIncludeComments", pinc.inc)
-			checkIncludeComments(pinc, fp, false)
+				checkIncludeComments(pinc, fp, false)
+			end
 		end
 	end
-
 
 
 	local luaBindingIncFiles = table{inc.inc}:append(inc.moreincs)
