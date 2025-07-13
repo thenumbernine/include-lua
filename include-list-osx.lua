@@ -1,7 +1,7 @@
 local table = require 'ext.table'
 local string = require 'ext.string'
 
-local util = require 'util'
+local util = require 'include.util'
 local safegsub = util.safegsub
 local removeEnum = util.removeEnum
 local commentOutLine = util.commentOutLine

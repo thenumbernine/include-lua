@@ -21,7 +21,7 @@ local io = require 'ext.io'
 local os = require 'ext.os'
 local tolua = require 'ext.tolua'
 
-local util = require 'util'
+local util = require 'include.util'
 local safegsub = util.safegsub
 local removeEnum = util.removeEnum
 local commentOutLine = util.commentOutLine
@@ -189,9 +189,9 @@ each should have:
 2) external includes that make up the API of requests for `require 'ffi.req' 'c.whatever'` <=> `#include <whatever.h>`
 https://stackoverflow.com/a/2029106/2714073
 --]]
-includeList:append(require 'include-list-windows')
-includeList:append(require 'include-list-linux')
-includeList:append(require 'include-list-osx')
+includeList:append(require 'include.include-list-windows')
+includeList:append(require 'include.include-list-linux')
+includeList:append(require 'include.include-list-osx')
 
 includeList:append(table{
 

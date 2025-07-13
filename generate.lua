@@ -9,7 +9,7 @@ local os = require 'ext.os'
 local tolua = require 'ext.tolua'
 local Preproc = require 'preproc'
 
-local includeList = table(require 'include-list')
+local includeList = table(require 'include.include-list')
 
 
 local ThisPreproc = Preproc:subclass()
