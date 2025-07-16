@@ -1347,18 +1347,6 @@ return ffi.load '/usr/lib/libmono-2.0.so'
 		end,
 	},
 
-	-- based on some c bindings I wrote for https://github.com/dacap/clip
-	-- which maybe I should also put on github ...
-	{
-		inc = '<cclip.h>',
-		out = 'cclip.lua',
-		final = function(code)
-			code = code .. '\n'
-				.."return require 'ffi.load' 'clip'\n"
-			return code
-		end,
-	},
-
 	{	-- libelf
 		inc = '<gelf.h>',		-- gelf.h -> libelf.h -> elf.h
 		moreincs = {
