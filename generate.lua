@@ -607,7 +607,19 @@ local function preprocessWithCompiler(inc)
 
 
 	-- also in make.lua
+	-- TODO somehow gotta string together all make_bindings.lua that calls into this, and search all of them
+	-- [[ assumes you're running it from $LUA_PROJECT_PATH/include:
 	local outdir = path'results/ffi'
+	--]]
+	--[[ assumes there's a previous run's cached result stored in $LUA_PROJECT_PATH/include/results/ffi
+	local outdir = path(os.getenv'LUA_PROJECT_PATH')'include/results/ffi'
+	--]]
+	--[[ assumes there is in $LUA_PROJECT_PATH/ffi
+	local outdir = path(os.getenv'LUA_PROJECT_PATH')'include/results/ffi'
+	--]]
+	--[[ for now just use the ffi folder, which is gonna become the posix folder as I move more 3rd party bindings into their respective folders
+	local outdir = path(os.getenv'LUA_PROJECT_PATH')'ffi'
+	--]]
 
 
 -- TODO TODO TODO
@@ -675,8 +687,10 @@ then re-run it
 	-- l = current line
 	-- l2 = optional next line for testing empty lines
 	local function processIncludeBeginComment(pinc, fp, line, l, l2, skipOwnInc)
+--DEBUG:print('processIncludeBeginComment checking', l, l2)
 		local plus, search, includePath = parseIncludeBeginComment(l, l2)
 		if not search then return end
+--DEBUG:print('processIncludeBeginComment found', plus, search, includePath)
 --		if skipOwnInc and plus == '+' then return end
 		local prevIncInfo = prevIncludeInfos[includePath]
 		local newIncInfo = {
@@ -716,13 +730,18 @@ then re-run it
 	-- FOR EVERY SINGLE FILE, THAT'S O(N^2)
 	-- how about doing this as we go too?
 	-- but that'd screw up for one-off files...
-	local incIndex = includeList:find(inc)
-	if not incIndex then
-		io.stderr:write"NOTICE - I couldn't find the include file in the master list -- ffi.req-inserting won't work.\n"
-	else
-		for i=1,incIndex-1 do
+	local incSearchEndIndex = includeList:find(inc)
+	if not incSearchEndIndex then
+		io.stderr:write"NOTICE - I couldn't find the include file in the master list -- searching all.\n"
+		incSearchEndIndex = #includeList
+	end
+	do
+		for i=1,incSearchEndIndex-1 do
 			local pinc = includeList[i]
 			local fp = path(pinc.out)
+-- dirty dirty hack.
+-- how to organize this across multiple libraries?
+
 			if not outdir(fp):exists() then
 				print('!!! '..fp.." doesn't exist - can't compare like include trees")
 			else
@@ -977,7 +996,7 @@ then re-run it
 								-- if the #include file has already been defined ...
 								-- then just insert it here
 								local prevIncInfo = prevIncludeInfos[includePath]
---DEBUG:print('CHECKING PREVIOUS INCLUDE FOR ', includePath, prevIncInfo , wasSuppressed )
+--DEBUG:print('CHECKING PREVIOUS INCLUDE FOR ', includePath, prevIncInfo, wasSuppressed )
 								if prevIncInfo
 								and not (
 									-- don't use ourselves
@@ -990,7 +1009,7 @@ then re-run it
 										-- ... then we have to find in all includeList for prevIncInfo.search
 										-- ... then we put its .out here
 										local previnc = select(2, includeList:find(nil, function(o) return o.inc == prevIncInfo.search end))
---DEBUG:print('previous includeList entry?',previnc)
+--DEBUG:print('previous includeList entry?', previnc)
 										if not previnc then
 											--[[ TODO redunant? don't do this here and at the end ?
 											-- or do I need the prevIncludeInfos[] entries?
