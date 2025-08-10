@@ -971,30 +971,6 @@ return require 'ffi.load' 'openal'
 		},
 	},
 
---[=[	TODO how about a flag for skipping a package in `make.lua all` ?
-	{
-		inc = '<mono/jit/jit.h>',
-		out = 'mono.lua',
-		pkgconfig = 'mono-2',
-		final = function(code)
-			-- enums are ints right ... ?
-			code = safegsub(code, 'typedef (enum %b{})%s*([_%a][_%w]*);', '%1; typedef int %2;')
-			-- these are interleaved in another enum ...
-			code = safegsub(code, 'enum { MONO_TABLE_LAST = 0 };', ' ')
-			code = safegsub(code, 'enum { MONO_TABLE_NUM = 1 };', ' ')
-			-- pkg-config --libs mono-2
-			-- -L/usr/lib/pkgconfig/../../lib -lmono-2.0 -lm -lrt -ldl -lpthread
-			-- return require 'ffi.load' 'mono-2.0' ... failed to find it
-			-- return require 'ffi.load' '/usr/lib/libmono-2.0.so' ... /usr/lib/libmono-2.0.so: undefined symbol: _ZTIPi
-			code = code .. [[
-ffi.load('/usr/lib/x86_64-linux-gnu/libstdc++.so.6', true)
-return ffi.load '/usr/lib/libmono-2.0.so'
-]]
-			return code
-		end,
-	},
---]=]
-
 	{
 		inc = '<pulse/pulseaudio.h>',
 		out = 'pulse.lua',
