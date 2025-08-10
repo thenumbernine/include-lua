@@ -971,22 +971,6 @@ return require 'ffi.load' 'openal'
 		},
 	},
 
-	{
-		inc = '<Python.h>',
-		out = 'python.lua',
-		pkgconfig = 'python3',
-		--[[
-		includedirs = {
-			'/usr/include/python3.11',
-			'/usr/include/x86_64-linux-gnu/python3.11',
-		},
-		--]]
-		macros = {
-			'__NO_INLINE__',
-			'PIL_NO_INLINE',
-		},
-	},
-
 --[=[	TODO how about a flag for skipping a package in `make.lua all` ?
 	{
 		inc = '<mono/jit/jit.h>',
