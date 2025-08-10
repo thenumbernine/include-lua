@@ -3,7 +3,7 @@ local ffi = require 'ffi'
 local path = require 'ext.path'
 local table = require 'ext.table'
 local os = require 'ext.os'
-local includeList = table(require 'include-list')
+local includeList = table(require 'include.include-list')
 
 local req = assert(..., "`make.lua all` for all, or `make.lua <sourceIncludeFile.h>`")
 

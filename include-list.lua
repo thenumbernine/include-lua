@@ -1215,8 +1215,8 @@ function IncludeFile:setupPkgConfig()
 	end
 end
 
-for _,inc in ipairs(includeList) do
-	assert(not getmetatable(inc))
+for i,inc in ipairs(includeList) do
+	assert(not getmetatable(inc), 'index='..i..' inc='..tostring(inc.inc))
 	setmetatable(inc, IncludeFile)
 end
 
