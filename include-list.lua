@@ -523,65 +523,6 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		},
 	},
 
-	-- depends on: stdio.h stdint.h stdarg.h stdbool.h
-	{
-		-- cimgui has these 3 files together:
-		-- OpenGL i had to separate them
-		-- and OpenGL i put them in OS-specific place
-		inc = '<cimgui.h>',
-		out = 'cimgui.lua',
-		--[[ I think these go on to include imgui.h so maybe it's best to just manually insert these 10 lines or so
-		moreincs = {
-			'<imgui_impl_sdl3.h>',
-			'<imgui_impl_opengl3.h>',
-		},
-		--]]
-		--[[
-		silentincs = {
-			-- include these but don't use them ... hmm ...
-			-- quotes cuz within its own framework it uses quotes
-			-- (honestly, if you're writing a distributable header,
-			--  you should be assuming your headers are installed and so you should be using <> and not ""
-			--  and for that reason, when do we ever want a distinction between <> and ""?
-			--  there should be only one #include search path set,
-			--  and devevlopment projects should just put their cwd at the top of that search list.)
-			-- TODO TODO TODO get silentincs working, cuz its not working!
-			'<imgui.h>',
-			'"imgui.h"',
-		},	-- full of C++ so don't include it
-		--]]
-		includedirs = {
-			'/usr/local/include/imgui-1.91.9dock',
-		},
-		macros = {
-			'CIMGUI_DEFINE_ENUMS_AND_STRUCTS',
-		},
-		final = function(code)
-			-- this is already in SDL
-			code = safegsub(code,
-				string.patescape'struct SDL_Window;'..'\n'
-				..string.patescape'struct SDL_Renderer;'..'\n'
-				..string.patescape'struct _SDL_GameController;'..'\n'
-				..string.patescape'typedef union SDL_Event SDL_Event;',
-
-				-- simultaneously insert require to ffi/sdl.lua
-				"]] require 'sdl' ffi.cdef[["
-			)
-
-			-- looks like in the backend file there's one default parameter value ...
-			code = safegsub(code, 'glsl_version = nullptr', 'glsl_version')
-
-			code = safegsub(code, 'enum ImGui_ImplSDL3_GamepadMode {([^}]-)};', 'typedef enum {%1} ImGui_ImplSDL3_GamepadMode;')
-			code = safegsub(code, string.patescape'manual_gamepads_array = ((void *)0)', 'manual_gamepads_array')
-			code = safegsub(code, string.patescape'manual_gamepads_count = -1', 'manual_gamepads_count')
-
-			code = code .. [[
-return require 'ffi.load' 'cimgui_sdl'
-]]
-			return code
-		end,
-	},
-
 	{
 		inc = '<CL/opencl.h>',
 		out = 'OpenCL.lua',
