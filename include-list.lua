@@ -523,26 +523,6 @@ return require 'ffi.load' 'hdf5'	-- pkg-config --libs hdf5
 		},
 	},
 
-	{
-		inc = '<CL/opencl.h>',
-		out = 'OpenCL.lua',
-		includedirs = ffi.os == 'OSX' and {
-			'/usr/local/opt/opencl-headers/include',	-- brew instal opencl-headers
-		} or nil,
-		final = function(code)
-			code = commentOutLine(code, 'warning: Need to implement some method to align data here')
-
-			-- ok because I have more than one inc, the second inc points back to the first, and so we do create a self-reference
-			-- so fix it here:
-			--code = safegsub(code, string.patescape"]] require 'ffi.req' 'OpenCL' ffi.cdef[[\n", "")
-
-			code = code .. [[
-return require 'ffi.load' 'OpenCL'
-]]
-			return code
-		end,
-	},
-
 -- these external files are per-OS
 -- maybe eventually all .h's will be?
 
