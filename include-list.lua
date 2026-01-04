@@ -930,41 +930,6 @@ return require 'ffi.load' 'openal'
 		end,
 	},
 
-	{
-		inc = '<vulkan/vulkan_core.h>',
-		out = 'vulkan.lua',
-		includedirs = ffi.os == 'Linux' and {
-				'/usr/include/vulkan',
-				'/usr/include/vk_video',
-			} or ffi.os == 'OSX' and {
-				--[[ brew install vulkan-loader vulkan-headers
-				'/usr/local/opt/vulkan-headers/include/vulkan',
-				'/usr/local/opt/vulkan-headers/include/vk_video',
-				--]]
-				--[[ brew install molten-vk
-				'/usr/local/opt/molten-vk/libexec/include/vulkan',
-				'/usr/local/opt/molten-vk/libexec/include/vk_video',
-				--]]
-			} or nil,
-		final = function(code)
-			local postdefs = table()
-			code = code:gsub('static const (%S+) (%S+) = ([0-9x]+)ULL;\n',
-				-- some of these rae 64bit numbers ... I should put them in lua tables as uint64_t's
-				--'enum { %2 = %3 };'
-				function(ctype, name, value)
-					postdefs:insert(name.." = ffi.new('"..ctype.."', "..value..")")
-					return ''
-				end
-			)
-			code = code .. '\n'
-				.."local lib = require 'ffi.load' 'vulkan'\n"
-				.."return setmetatable({\n"
-				..postdefs:mapi(function(l) return '\t'..l..',' end):concat'\n'..'\n'
-				.."}, {__index=lib})\n"
-			return code
-		end,
-	},
-
 	{	-- libelf
 		inc = '<gelf.h>',		-- gelf.h -> libelf.h -> elf.h
 		moreincs = {
