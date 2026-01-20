@@ -872,15 +872,15 @@ then re-run it
 
 				if l == '' then
 				elseif l:find'^#define' then
-
 					-- we actually do need to do macro-evaluation
 					do
 						local k,v = l:match'^#define%s+([_%a][_%w]*)%s*(.-)$'
 						allMacrosEvenSuppressedOnes[k] = v
+--DEBUG:local top = incstack:last()
+--DEBUG:print('line', l, 'define', k, v, 'top', top, 'top.path', top and top.path, 'top.suppress', top and top.suppress, 'top.search', top and top.search)
 					end
 
 					local top = incstack:last()
-
 					if not top	-- gcc linux doesn't specify the 'enter' include flag, i.e. no `# 0 "<stdin>" 1` like clang does.
 					or top.path == '<built-in>'
 					or top.path == '<command line>'	-- clang
