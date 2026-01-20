@@ -11,6 +11,8 @@ local Preproc = require 'preproc'
 
 local includeList = table(require 'include.include-list')
 
+local defaultOutDir = path'results/ffi'
+
 
 local ThisPreproc = Preproc:subclass()
 
@@ -609,7 +611,7 @@ local function preprocessWithCompiler(inc)
 	-- also in make.lua
 	-- TODO somehow gotta string together all make_bindings.lua that calls into this, and search all of them
 	-- [[ assumes you're running it from $LUA_PROJECT_PATH/include:
-	local outdir = path'results/ffi'
+	local outdir = inc.outdir or defaultOutDir
 	--]]
 	--[[ assumes there's a previous run's cached result stored in $LUA_PROJECT_PATH/include/results/ffi
 	local outdir = path(os.getenv'LUA_PROJECT_PATH')'include/results/ffi'
@@ -738,15 +740,17 @@ then re-run it
 	do
 		for i=1,incSearchEndIndex-1 do
 			local pinc = includeList[i]
-			local fp = path(pinc.out)
+			local prevOutFileName = path(pinc.out)
 -- dirty dirty hack.
 -- how to organize this across multiple libraries?
 
-			if not outdir(fp):exists() then
-				print('!!! '..fp.." doesn't exist - can't compare like include trees")
+			local prevOutDir = pinc.outdir or defaultOutDir
+			local prevOutFilePath = prevOutDir(prevOutFileName)
+			if not prevOutFilePath:exists() then
+				print('!!! searching for '..prevOutFileName..", "..prevOutFilePath.." doesn't exist, can't compare like include trees")
 			else
 --DEBUG:print("checkIncludeComments", pinc.inc)
-				checkIncludeComments(pinc, fp, false)
+				checkIncludeComments(pinc, prevOutFileName, false)
 			end
 		end
 	end
