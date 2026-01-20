@@ -1,0 +1,83 @@
+#!/usr/bin/env rua
+--[[
+build all bindings based on the distinfo in our cwd
+
+TODO replace this with include/make.lua 
+... and maybe rename make.lua into makeall.lua or make-ffi-c.lua 
+... since it was designed to build everything at once, primarily starting with the ffi/c contents 
+--]]
+
+-- dir that we are running from
+local runDir = path:cwd()
+print('runDir', runDir)
+
+-- dir that include/ is in
+local includeProjectDir = path((assert(package.searchpath('include.make-distinfo', package.path)))):getdir()
+print('includeProjectDir', includeProjectDir)
+
+local distInfoInRunDir = runDir'distinfo'
+assert(distInfoInRunDir:exists(), "couldn't find "..distInfoInRunDir)
+
+
+local distinfo = setmetatable({}, {__index=_G})
+assert(loadfile('distinfo', 'bt', distinfo))()
+setmetatable(distinfo, nil)
+
+-- TODO here
+-- recursively search distinfo.deps
+-- build the includeList from .generateBindings as you go
+-- TODO TODO merge with ../dist/run.lua's recursive search
+-- until then, the lazy way
+local systemBindings = table(require 'include.include-list')
+for _,binding in ipairs(systemBindings) do
+	-- TODO instead of this, put the include-list into the ffi/ project dir (and call it something else like 'system bindings' or 'c headers' or whatever ... or include? *shrug*) 
+	-- ... and then just use its dir as where we look for all our c runtime luajit bindings	
+	binding.outdir = path((assert(package.searchpath('ffi.req', package.path)))):getdir()
+end
+
+
+local generateBindings = distinfo.generateBindings
+if not generateBindings then
+	print("no `generateBindings` in distinfo, exiting...")
+	return
+end
+generateBindings = table(generateBindings) 
+for _,binding in ipairs(generateBindings) do
+	binding.outdir = runDir
+end
+
+-- process cmdline requests
+local reqBindings
+if select('#', ...) > 0 then
+	reqBindings = table{...} 
+	:mapi(|out|(
+		(select(2, generateBindings:find(nil, |b| b.out == out)))
+		or error("!!! failed to find binding for "..tostring(out))
+	))
+else
+	reqBindings = generateBindings
+end
+
+-- now prepend system bindings so we can search through it for replacing #include's with "require ffi.req"'s
+local allBindings = table():append(systemBindings, reqBindings)
+
+for _,binding in ipairs(reqBindings) do
+	if binding.dontGen then
+		print(binding.inc.. " has .dontGen set, skipping...")
+		continue
+	end
+		
+	print('generating', binding.out, binding.inc)
+
+	-- TODO make the distinfo put ffi/ ?
+	local outpath = runDir/'ffi'/binding.out
+	outpath:getdir():mkdir(true)
+	
+	if binding.forcecode then
+		outpath:write(binding.forcecode)
+	else
+		outpath:write(require 'include.generate'(
+			binding
+		))
+	end
+end
