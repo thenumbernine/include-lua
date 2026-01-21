@@ -233,7 +233,7 @@ return require 'ffi.load' 'ffi'
 		inc = '<gif_lib.h>',
 		out = 'gif.lua',
 		-- no brew pkgconfig file for giflib...
-		includedirs = ffi.osx == 'OSX' and {
+		includedirs = ffi.os == 'OSX' and {
 			'/usr/local/opt/giflib/include/',
 		} or nil,
 		final = function(code)
