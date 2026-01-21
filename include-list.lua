@@ -328,24 +328,6 @@ return require 'ffi.load' 'gif'
 		end,
 	},
 
-	-- apt install libnetcdf-dev
-	{
-		inc = '<netcdf.h>',
-		out = 'netcdf.lua',
-		pkgconfig = 'netcdf',
-		final = function(code)
-			code = removeEnum(code, string.patescape"NC_MAX_DOUBLE = 1.7976931348623157e+308")
-			code = code .. [[
-local wrapper = setmetatable({}, {__index = require 'ffi.load' 'netcdf'})
-wrapper.NC_MAX_DOUBLE = 1.7976931348623157e+308
-wrapper.NC_MAX_INT64 = 9.2233720368548e+18
-wrapper.NC_MIN_INT64 = -9.2233720368548e+18
-return wrapper
-]]
-			return code
-		end,
-	},
-
 	-- apt install libhdf5-dev
 	-- depends: inttypes.h
 	{
