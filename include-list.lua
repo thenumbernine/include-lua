@@ -308,38 +308,6 @@ return require 'ffi.load' 'lapacke'
 		end,
 	},
 
-	-- libzip-dev
-	-- TODO #define ZIP_OPSYS_* is hex values, should be enums, but they are being commented out ...
-	-- because they have 'u' suffixes
-	-- same with some other windows #defines
-	-- any that have u i etc i32 i64 etc are being failed by my parser.
-	{
-		inc = '<zip.h>',
-		macroincs = {
-			-- these are for the macro preprocessor to know what macros to keep for emitting into enums, vs which to throw out
-			'<zipconf.h>'
-		},
-		out = 'zip.lua',
-		final = function(code, preproc)
-			-- I'll just put these in the macros since they don't fit in luajit enums ...
-			code = removeEnum(code, 'ZIP_INT64_MAX = [^\n]*')
-			code = removeEnum(code, 'ZIP_UINT64_MAX = [^\n]*')
-			-- TODO get ZIP_UINT32_MAX working
-			return makeLibWrapper{
-				code = code,
-				preproc = preproc,
-				lib = 'zip',
-				footerCode = [[
--- macros
-
-wrapper.LIBZIP_VERSION = ]]..preproc.macros.LIBZIP_VERSION..'\n'..[[
-wrapper.ZIP_INT64_MAX = ]]..preproc.macros.ZIP_INT64_MAX..'\n'..[[
-wrapper.ZIP_UINT64_MAX = ]]..preproc.macros.ZIP_UINT64_MAX..'\n'..[[
-]]
-			}
-		end,
-	},
-
 	{
 		inc = '<pulse/pulseaudio.h>',
 		out = 'pulse.lua',
