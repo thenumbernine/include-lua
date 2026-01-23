@@ -426,6 +426,8 @@ return setmetatable({}, {
 		out='Linux/c/signal.lua',
 	},
 
+	{inc='<locale.h>', out='Linux/c/locale.lua'},
+
 		------------ ISO/IEC 9899:1990/Amd.1:1995 ------------
 
 	-- in list: Windows Linux OSX
