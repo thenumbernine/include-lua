@@ -313,4 +313,6 @@ for i,inc in ipairs(includeList) do
 	setmetatable(inc, IncludeFile)
 end
 
+includeList.IncludeFile = IncludeFile  -- what a mess
+
 return includeList

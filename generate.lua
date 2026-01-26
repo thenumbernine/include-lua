@@ -396,7 +396,7 @@ local function preprocessWithLuaPreprocessor(inc)
 ]]
 
 		-- I'm sure there's a proper way to query this ...
-		local MSVCDir = [[C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.43.34808]]
+		local MSVCDir = [[C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207]]
 
 		-- [=[ <sal.h> has these:  (included by <vcruntime.h>)
 		for l in io.lines(MSVCDir..[[\include\sal.h]]) do
