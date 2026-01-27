@@ -42,7 +42,7 @@ if not generateBindings then
 	print("no `generateBindings` in distinfo, exiting...")
 	return
 end
-generateBindings = table(generateBindings) 
+generateBindings = table(generateBindings())
 for _,binding in ipairs(generateBindings) do
 	setmetatable(binding, systemBindings.IncludeFile)
 	binding.outdir = runDir
