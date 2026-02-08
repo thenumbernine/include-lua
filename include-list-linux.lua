@@ -68,6 +68,18 @@ enum { F_TEST = 3 };
 ]=],
 	},
 
+	{
+		-- defined in <bits/types.h> and <sys/socket.h>
+		inc = '$notthere.h',
+		out = 'Linux/c/bits/types/__FD_SETSIZE.lua',
+		forcecode = [=[
+local ffi = require 'ffi'
+ffi.cdef[[
+enum { __FD_SETSIZE = 1024 };
+]]
+]=],
+	},
+
 	-- used by <bits/timesize.h> <features.h>
 	{inc='<bits/wordsize.h>', out='Linux/c/bits/wordsize.lua'},
 
@@ -91,7 +103,19 @@ enum { F_TEST = 3 };
 -- but silentincs is messing up ...
 
 	-- used by <time.h> <ctype.h>
-	{inc='<bits/types.h>', out='Linux/c/bits/types.lua'},
+	{
+		inc = '<bits/types.h>',
+		out = 'Linux/c/bits/types.lua',
+		final = function(code)
+			-- defined in <bits/types.h> and <sys/socket.h>
+			code = safegsub(
+				code,
+				'enum { __FD_SETSIZE = 1024 };',
+				"]] require 'ffi.req' 'c.bits.types.__FD_SETSIZE' ffi.cdef[["
+			)
+			return code
+		end,
+	},
 
 	-- used by <string.h> <ctype.h>
 	{inc='<bits/types/locale_t.h>', out='Linux/c/bits/types/locale_t.lua', silentincs={'<features.h>'}},
@@ -595,6 +619,20 @@ return setmetatable({
 	{inc='<sys/time.h>', out='Linux/c/sys/time.lua'},
 
 	----------------------- OS-SPECIFIC & EXTERNALLY REQUESTED BY 3RD PARTY LIBRARIES: -----------------------
+
+	{
+		inc = '<sys/socket.h>',
+		out = 'Linux/c/sys/socket.lua',
+		final = function(code)
+			-- defined in <bits/types.h> and <sys/socket.h>
+			code = safegsub(
+				code,
+				'enum { __FD_SETSIZE = 1024 };',
+				"]] require 'ffi.req' 'c.bits.types.__FD_SETSIZE' ffi.cdef[["
+			)
+			return code
+		end,
+	},
 
 }:mapi(function(inc)
 	inc.os = 'Linux' -- meh?  just have all these default for -nix systems?
