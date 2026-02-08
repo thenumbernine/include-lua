@@ -48,7 +48,7 @@ return table{
 	-- *_OK is used by <unistd.h> <fcntl.h>
 	-- they all hvae the same macros so they're going here:
 	{
-		inc = '$notthere.h',
+		inc = '$notthere_1.h',
 		out = 'Linux/c/bits/types/SEEK.lua',
 		forcecode = [=[
 local ffi = require 'ffi'
@@ -70,7 +70,7 @@ enum { F_TEST = 3 };
 
 	{
 		-- defined in <bits/types.h> and <sys/socket.h>
-		inc = '$notthere.h',
+		inc = '$notthere_2.h',
 		out = 'Linux/c/bits/types/__FD_SETSIZE.lua',
 		forcecode = [=[
 local ffi = require 'ffi'
@@ -632,6 +632,11 @@ return setmetatable({
 			)
 			return code
 		end,
+	},
+
+	{
+		inc = '<netinet/in.h>',
+		out = 'Linux/c/netinet/in.lua',
 	},
 
 }:mapi(function(inc)
