@@ -639,6 +639,20 @@ return setmetatable({
 		out = 'Linux/c/netinet/in.lua',
 	},
 
+	{
+		inc = '<netdb.h>',
+		out = 'Linux/c/netdb.lua',
+		final = function(code)
+			-- this is in both netdb and netinet/in.h
+			code = safegsub(
+				code,
+				'enum { IPPORT_RESERVED = 1024 };',
+				''
+			)
+			return code
+		end,
+	},
+
 }:mapi(function(inc)
 	inc.os = 'Linux' -- meh?  just have all these default for -nix systems?
 
