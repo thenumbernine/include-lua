@@ -152,7 +152,7 @@ return wrapper
 local wrapper
 wrapper = setmetatable({
 	errno = function()
-		return ffi.C.__errno_location()[0]
+		return ffi.C.__errno()[0]
 	end,
 	str = function()
 		require 'ffi.req' 'c.string'	-- strerror
