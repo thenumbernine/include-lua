@@ -37,9 +37,18 @@ each should have:
 2) external includes that make up the API of requests for `require 'ffi.req' 'c.whatever'` <=> `#include <whatever.h>`
 https://stackoverflow.com/a/2029106/2714073
 --]]
-includeList:append(require 'include.include-list-windows')
-includeList:append(require 'include.include-list-linux')
-includeList:append(require 'include.include-list-osx')
+if ffi.os == 'Windows' then
+	includeList:append(require 'include.include-list-windows')
+end
+if ffi.os == 'Linux' then
+	includeList:append(require 'include.include-list-linux')
+end
+if ffi.os == 'OSX' then
+	includeList:append(require 'include.include-list-osx')
+end
+if ffi.os == 'Android' then
+	includeList:append(require 'include.include-list-android')
+end
 
 includeList:append(table{
 
