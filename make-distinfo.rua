@@ -20,6 +20,7 @@ assert(distInfoInRunDir:exists(), "couldn't find "..distInfoInRunDir)
 
 
 local distinfo = setmetatable({}, {__index=_G})
+distinfo.ffi = ffi -- ??
 distinfo.require = _G.require -- ???  why not already?
 assert(loadfile('distinfo', 'bt', distinfo))()
 setmetatable(distinfo, nil)
