@@ -8,33 +8,15 @@ local util = require 'include.util'
 local safegsub = util.safegsub
 local removeEnum = util.removeEnum
 
--- _VA_LIST_DEFINED and va_list don't appear next to each other like the typical bits_types_builtin do
-local function remove_VA_LIST_DEFINED(code)
-	return removeEnum(code, '_VA_LIST_DEFINED = 1')
-end
-
 local function replace_SEEK(code)
+	-- unistd.h stdio.h fcntl.h all define SEEK_*, so ...
 	code = safegsub(code, [[
 enum { SEEK_SET = 0 };
 enum { SEEK_CUR = 1 };
 enum { SEEK_END = 2 };
 ]],
-		"]] require 'ffi.req' 'c.bits.types.SEEK' ffi.cdef[[\n"
+		"]] require 'ffi.req' 'c.SEEK' ffi.cdef[[\n"
 	)
-	code = safegsub(code, [[
-enum { R_OK = 4 };
-enum { W_OK = 2 };
-enum { X_OK = 1 };
-enum { F_OK = 0 };
-]],
-		'')
-	code = safegsub(code, [[
-enum { F_ULOCK = 0 };
-enum { F_LOCK = 1 };
-enum { F_TLOCK = 2 };
-enum { F_TEST = 3 };
-]],
-		'')
 	return code
 end
 
@@ -44,6 +26,19 @@ return table{
 
 	{
 		inc = '$notthere_1.h',
+		out = 'Android/c/SEEK.lua',
+		forcecode = [=[
+local ffi = require 'ffi'
+ffi.cdef[[
+enum { SEEK_SET = 0 };
+enum { SEEK_CUR = 1 };
+enum { SEEK_END = 2 };
+]]
+]=],
+	},
+
+	{
+		inc = '$notthere_2.h',
 		out = 'Android/c/PAGE_SIZE.lua',
 		forcecode = [=[
 local ffi = require 'ffi'
@@ -186,8 +181,7 @@ return wrapper
 		inc = '<stdio.h>',
 		out = 'Android/c/stdio.lua',
 		final = function(code)
-			--code = replace_SEEK(code)
-			--code = remove_VA_LIST_DEFINED(code)
+			code = replace_SEEK(code)
 			-- for fopen overloading
 			code = code .. [[
 -- special case since in the browser app where I'm capturing fopen for remote requests and caching
@@ -235,7 +229,6 @@ return setmetatable({}, {
 
 			--code = removeEnum(code, 'WCHAR_MAX = 0x7fffffff')
 			--code = removeEnum(code, '__WCHAR_MAX = 0x7fffffff')
-			--code = remove_VA_LIST_DEFINED(code)
 			return code
 		end,
 	},
@@ -277,6 +270,7 @@ return setmetatable({}, {
 		inc = '<fcntl.h>',
 		out = 'Android/c/fcntl.lua',
 		final = function(code)
+			code = replace_SEEK(code)
 			-- abstraction used by lfs_ffi
 			code = code .. [[
 return ffi.C
@@ -329,7 +323,7 @@ return ffi.C
 		inc = '<unistd.h>',
 		out = 'Android/c/unistd.lua',
 		final = function(code)
-			--code = replace_SEEK(code)
+			code = replace_SEEK(code)
 			-- but for interchangeability with Windows ...
 			code = code .. [[
 return ffi.C
