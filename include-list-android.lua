@@ -428,6 +428,10 @@ return setmetatable({
 		end,
 	},
 
+	{
+		inc = '<semaphore.h>',
+		out = 'Android/c/semaphore.lua',
+	},
 }:mapi(function(inc)
 	inc.os = 'Android'
 
