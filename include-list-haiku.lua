@@ -330,6 +330,12 @@ return setmetatable({
 	{
 		inc = '<semaphore.h>',
 		out = 'Haiku/c/semaphore.lua',
+		final = function(code)
+			code = code .. [[
+return ffi.C
+]]
+			return code
+		end,
 	},
 }:mapi(function(inc)
 	inc.os = 'Haiku'

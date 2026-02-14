@@ -317,6 +317,9 @@ return ffi.C
 				string.patescape'enum { PAGE_SIZE = 4096 };',
 				"]] require 'ffi.req' 'c.PAGE_SIZE' ffi.cdef[["
 			)
+			code = code .. [[
+return ffi.C
+]]
 			return code
 		end,
 	},
@@ -434,6 +437,12 @@ return setmetatable({
 	{
 		inc = '<semaphore.h>',
 		out = 'Android/c/semaphore.lua',
+		final = function(code)
+			code = code .. [[
+return ffi.C
+]]
+			return code
+		end,
 	},
 }:mapi(function(inc)
 	inc.os = 'Android'
