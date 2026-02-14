@@ -123,9 +123,6 @@ return wrapper
 				string.patescape'enum { PAGE_SIZE = 4096 };',
 				"]] require 'ffi.req' 'c.PAGE_SIZE' ffi.cdef[["
 			)
-			code = code .. [[
-return ffi.C
-]]
 			return code
 		end,
 	},
