@@ -772,6 +772,11 @@ then re-run it
 					-- I put all my 3rd party include files in windows in $HOME/include... where else would they go?
 					'-I '..(path(os.home())/'include'):escape(),	-- bad idea?
 				},
+				Android = {
+					"-D_Nonnull=",
+					"-D_Nullable=",
+					"-D_Null_unspecified=",
+				},
 			})[ffi.os],
 			-- * add `pkg-config ${name} --cflags` if it's there
 			inc.pkgconfig and {string.trim(io.readproc('pkg-config --cflags '..inc.pkgconfig))} or nil,

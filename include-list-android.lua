@@ -441,9 +441,6 @@ return setmetatable({
 		code = removeEnum(code, '__[_%w]*_defined = 1')
 		code = removeEnum(code, '__have_[_%w]* = 1')
 		--code = removeEnum(code, '_[_%w]*_H = 1')
-		code = safegsub(code, '_Nonnull', '')	-- for Android headers
-		code = safegsub(code, '_Nullable', '')	-- for Android headers
-		code = safegsub(code, '_Null_unspecified', '')	-- for Android headers
 		if oldfinal then code = oldfinal(code) end
 		return code
 	end
