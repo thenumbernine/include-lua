@@ -285,6 +285,12 @@ return ffi.C
 	{
 		inc='<bsd_pthread.h>',
 		out='Haiku/c/pthread.lua',
+		final = function(code)
+			code = code .. [[
+return ffi.C
+]]
+			return code
+		end,
 	},
 
 	{
