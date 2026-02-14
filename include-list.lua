@@ -49,6 +49,11 @@ end
 if ffi.os == 'Android' then
 	includeList:append(require 'include.include-list-android')
 end
+if ffi.os == 'Haiku' then
+	includeList:append(require 'include.include-list-haiku')
+end
+
+assert(#includeList > 0, "I didn't find your OS "..tostring(ffi.os))
 
 includeList:append(table{
 

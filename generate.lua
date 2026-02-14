@@ -777,6 +777,9 @@ then re-run it
 					"-D_Nullable=",
 					"-D_Null_unspecified=",
 				},
+				Haiku = {
+					"-isystem ./Haiku",
+				},
 			})[ffi.os],
 			-- * add `pkg-config ${name} --cflags` if it's there
 			inc.pkgconfig and {string.trim(io.readproc('pkg-config --cflags '..inc.pkgconfig))} or nil,
