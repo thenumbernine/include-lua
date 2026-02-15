@@ -18,13 +18,8 @@ print('includeProjectDir', includeProjectDir)
 local distInfoInRunDir = runDir'distinfo'
 assert(distInfoInRunDir:exists(), "couldn't find "..distInfoInRunDir)
 
+local distinfo = require 'dist.load-distinfo' 'distinfo'
 
-local distinfo = setmetatable({}, {__index=_G})
-distinfo.ffi = ffi -- ??
-require 'ext.env'(distinfo) -- ??
-distinfo.require = _G.require -- ???  why not already?
-assert(loadfile('distinfo', 'bt', distinfo))()
-setmetatable(distinfo, nil)
 
 -- TODO here
 -- recursively search distinfo.deps
