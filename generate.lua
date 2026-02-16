@@ -785,6 +785,8 @@ then re-run it
 			inc.pkgconfig and {string.trim(io.readproc('pkg-config --cflags '..inc.pkgconfig))} or nil,
 			-- * add `inc.includedirs`
 			table(inc.includedirs):mapi(function(inc) return '-I '..path(inc):escape() end),
+			-- add inc.includeSystemDirs
+			table(inc.includeSystemDirs):mapi(function(inc) return '-isystem '..path(inc):escape() end),
 			-- * set `inc.macros` with `-D`
 			table(inc.macros):mapi(function(macro) return '"-D'..macro..'"' end)
 		)
