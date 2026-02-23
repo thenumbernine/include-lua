@@ -4,7 +4,6 @@
 
 name = "include"
 files = {
-	".github/FUNDING.yml",
 	"README.md",
 	"generate.lua",
 	"include-list-android.lua",
