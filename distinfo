@@ -3,10 +3,14 @@
 --------------------------------------------
 
 name = "include"
+git = "https://github.com/thenumbernine/include-lua"
+
 files = {
 	"README.md",
+	"distinfo",
 	"generate.lua",
 	"include-list-android.lua",
+	"include-list-haiku.lua",
 	"include-list-linux.lua",
 	"include-list-osx.lua",
 	"include-list-windows.lua",
